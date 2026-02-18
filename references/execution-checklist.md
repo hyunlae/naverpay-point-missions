@@ -1,0 +1,12 @@
+# Execution Checklist
+
+1. Open mission page with persisted state and complete login manually.
+2. Run discovery and inspect the generated mission list:
+   - Remove items that are not safe to auto-click.
+   - Keep only obvious mission-action rows.
+   - Verify each mission `waitSeconds` is reasonable.
+3. Run mission script in a small batch (`--max 2`).
+4. Confirm point accrual on NaverPay page.
+5. Increase batch size only after successful verification.
+6. Re-run discovery whenever mission labels/cards change.
+7. Keep completed-campaign store and verify completed missions are skipped next run.
