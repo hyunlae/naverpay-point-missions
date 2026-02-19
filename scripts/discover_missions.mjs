@@ -7,11 +7,9 @@ import process from "node:process";
 import { chromium } from "playwright";
 
 import {
-  CLICK_MISSION_URL,
   DEFAULT_ACTION_KEYWORDS,
-  collectMissionActions,
+  discoverMissionsFromMainPointLinks,
   ensureLoggedIn,
-  gotoClickMissionList,
   getBoolArg,
   getNumberArg,
   getStringArg,
@@ -61,19 +59,18 @@ async function main() {
     console.log("[discover] opening NaverPay main page for login");
     console.log("[discover] complete login in the browser window if redirected");
     await ensureLoggedIn(page, loginTimeoutSec);
-    await gotoClickMissionList(page);
 
-    await page.waitForTimeout(2000);
-    const discovered = await collectMissionActions(page, keywords);
-    const missions = discovered.map((mission) => ({
-      ...mission,
-      waitSeconds: mission.waitSeconds ?? defaultWaitSeconds,
-      waitSource: mission.waitSource || "default-wait-seconds",
-    }));
+    const missions = await discoverMissionsFromMainPointLinks(
+      page,
+      context,
+      keywords,
+      defaultWaitSeconds,
+      { requireNClickMainLink: false, logPrefix: "[discover]" },
+    );
 
     const payload = {
       generatedAt: new Date().toISOString(),
-      source: CLICK_MISSION_URL,
+      source: "main-page-scan",
       keywordFilter: keywords,
       defaultWaitSeconds,
       missions,
@@ -82,7 +79,7 @@ async function main() {
     await writeFile(outPath, JSON.stringify(payload, null, 2), "utf8");
 
     console.log(`[discover] found ${missions.length} mission candidates`);
-    missions.slice(0, 20).forEach((mission, idx) => {
+    missions.slice(0, 30).forEach((mission, idx) => {
       const label = mission.label.slice(0, 48);
       const href = mission.href ? ` | ${mission.href.slice(0, 70)}` : "";
       console.log(

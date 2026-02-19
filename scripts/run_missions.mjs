@@ -16,9 +16,10 @@ import {
   clickClaimButton,
   clickPopupClaimByVisualPosition,
   clickPopupClaimButton,
-  collectMainPointReceiveLinks,
   collectMissionActions,
+  collectMissionActionsWithScroll,
   detectAlreadyCompletedPopup,
+  discoverMissionsFromMainPointLinks,
   ensureLoggedIn,
   findBestAction,
   gotoClickMissionList,
@@ -26,6 +27,7 @@ import {
   getNumberArg,
   getStringArg,
   hasNClickBadgeSignal,
+  hasNClickBadgeText,
   isMissionDetailUrl,
   isPlacementMissionListUrl,
   loadMissionArray,
@@ -33,6 +35,10 @@ import {
   parseCliArgs,
   parseCsvArg,
   resolveMissionWaitSeconds,
+  scrollDownOnce,
+  scrollToTop,
+  waitForNewPage,
+  waitForPageByPredicate,
 } from "./naverpay_helpers.mjs";
 
 function printUsage() {
@@ -103,17 +109,6 @@ async function saveCompletedCampaignKeys(storePath, keySet) {
   await writeFile(storePath, JSON.stringify(payload, null, 2), "utf8");
 }
 
-async function waitForNewPage(context, baselineCount, timeoutMs) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const pages = context.pages();
-    if (pages.length > baselineCount) {
-      return pages[pages.length - 1];
-    }
-    await new Promise((resolve) => setTimeout(resolve, 150));
-  }
-  return null;
-}
 
 async function tryPopupClaimWithRetry(page, options = {}) {
   const attempts = Math.max(1, Math.floor(Number(options.attempts ?? 4)));
@@ -162,34 +157,6 @@ async function openMissionSource(page, sourceUrl) {
   await page.waitForTimeout(1200);
 }
 
-async function waitForPageByPredicate(candidates, timeoutMs, predicate) {
-  const matchUrl = typeof predicate === "function" ? predicate : () => false;
-  const pages = [...new Set((Array.isArray(candidates) ? candidates : []).filter(Boolean))];
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    for (const candidate of pages) {
-      try {
-        if (!candidate || candidate.isClosed()) {
-          continue;
-        }
-        if (matchUrl(candidate.url())) {
-          return candidate;
-        }
-      } catch {
-        // Ignore closed/transient page states.
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 180));
-  }
-  return null;
-}
-
-function hasNClickBadgeText(item) {
-  if (hasNClickBadgeSignal(item)) {
-    return true;
-  }
-  return /N\s*클릭/i.test(String(item?.label ?? ""));
-}
 
 function pickBestMissionMatch(sourceMissions, currentActions, done, completedKeys) {
   let chosenMission = null;
@@ -228,270 +195,6 @@ function pickBestMissionMatch(sourceMissions, currentActions, done, completedKey
   };
 }
 
-async function scrollDownOnce(page, ratio = 0.85) {
-  return page.evaluate(({ scrollRatio }) => {
-    const step = Math.max(220, Math.floor(window.innerHeight * scrollRatio));
-    const before = window.scrollY;
-    const root = document.scrollingElement || document.documentElement || document.body;
-    const maxY = Math.max(0, (root?.scrollHeight ?? 0) - window.innerHeight);
-    if (before >= maxY - 2) {
-      return false;
-    }
-    window.scrollBy({ top: step, left: 0, behavior: "auto" });
-    return window.scrollY > before + 1;
-  }, { scrollRatio: ratio });
-}
-
-async function scrollToTop(page) {
-  await page.evaluate(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  });
-}
-
-async function collectMainPointReceiveLinksWithScroll(page, requireNClickMainLink) {
-  const seen = new Map();
-  let previousCount = -1;
-  let stagnantPasses = 0;
-  const maxPasses = 14;
-
-  for (let pass = 0; pass < maxPasses; pass += 1) {
-    const rawEntries = await collectMainPointReceiveLinks(page);
-    const entries = requireNClickMainLink
-      ? rawEntries.filter((item) => hasNClickBadgeText(item))
-      : rawEntries;
-    for (const item of entries) {
-      const key = missionKey(item);
-      if (!seen.has(key)) {
-        seen.set(key, item);
-      }
-    }
-
-    const currentCount = seen.size;
-    const moved = await scrollDownOnce(page);
-    if (!moved) {
-      break;
-    }
-    if (currentCount === previousCount) {
-      stagnantPasses += 1;
-    } else {
-      stagnantPasses = 0;
-    }
-    previousCount = currentCount;
-    if (stagnantPasses >= 2) {
-      break;
-    }
-    await page.waitForTimeout(280);
-  }
-
-  await scrollToTop(page);
-  await page.waitForTimeout(120);
-  return [...seen.values()];
-}
-
-async function collectMissionActionsWithScroll(page, actionKeywords, options = {}) {
-  const seen = new Map();
-  const onlyNClick = Boolean(options.onlyNClick);
-  const maxPasses = Math.max(1, Math.floor(Number(options.maxPasses ?? 18)));
-  let previousCount = -1;
-  let stagnantPasses = 0;
-
-  for (let pass = 0; pass < maxPasses; pass += 1) {
-    const rawActions = await collectMissionActions(page, actionKeywords);
-    const actions = onlyNClick ? rawActions.filter((item) => hasNClickBadgeSignal(item)) : rawActions;
-    for (const action of actions) {
-      const key = missionKey(action);
-      if (!seen.has(key)) {
-        seen.set(key, action);
-      }
-    }
-
-    const currentCount = seen.size;
-    const moved = await scrollDownOnce(page);
-    if (!moved) {
-      break;
-    }
-    if (currentCount === previousCount) {
-      stagnantPasses += 1;
-    } else {
-      stagnantPasses = 0;
-    }
-    previousCount = currentCount;
-    if (stagnantPasses >= 3) {
-      break;
-    }
-    await page.waitForTimeout(300);
-  }
-
-  await scrollToTop(page);
-  await page.waitForTimeout(120);
-  return [...seen.values()];
-}
-
-async function discoverMissionsFromMainPointLinks(
-  page,
-  context,
-  actionKeywords,
-  defaultWaitSeconds,
-  options = {},
-) {
-  const requireNClickMainLink = Boolean(options.requireNClickMainLink);
-  const discoveredMap = new Map();
-  const visitedMainLinkKeys = new Set();
-
-  await page.goto(MAIN_URL, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1500);
-  const entries = await collectMainPointReceiveLinksWithScroll(page, requireNClickMainLink);
-  console.log(
-    `[run] main page point links found: ${entries.length}${requireNClickMainLink ? " (N클릭 mode)" : ""}`,
-  );
-
-  for (let idx = 0; idx < entries.length; idx += 1) {
-    await page.goto(MAIN_URL, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1200);
-
-    const latestEntries = await collectMainPointReceiveLinksWithScroll(page, requireNClickMainLink);
-    const seed = entries[idx];
-    const seedKey = `${seed.label}|${seed.href}`;
-    if (visitedMainLinkKeys.has(seedKey)) {
-      continue;
-    }
-
-    const target =
-      latestEntries.find((item) => `${item.label}|${item.href}` === seedKey) ?? latestEntries[idx] ?? null;
-    if (!target) {
-      continue;
-    }
-
-    const targetKey = `${target.label}|${target.href}`;
-    if (visitedMainLinkKeys.has(targetKey)) {
-      continue;
-    }
-    visitedMainLinkKeys.add(targetKey);
-
-    console.log(
-      `[run] checking main link ${idx + 1}/${entries.length}: ${target.label.slice(0, 60)}`,
-    );
-
-    const baselineCount = context.pages().length;
-    const clickResult = await clickActionByIndex(page, target.actionIndex);
-    if (!clickResult.clicked) {
-      console.log("[run] main link click failed; skip");
-      continue;
-    }
-
-    await page.waitForTimeout(700);
-    const openedPage = await waitForNewPage(context, baselineCount, 2800);
-    const detailPage = await waitForPageByPredicate(
-      [page, openedPage && openedPage !== page ? openedPage : null],
-      9000,
-      (url) => isMissionDetailUrl(url),
-    );
-
-    if (!detailPage) {
-      if (openedPage && openedPage !== page && !openedPage.isClosed()) {
-        await openedPage.close().catch(() => {});
-      }
-      continue;
-    }
-
-    await detailPage.bringToFront().catch(() => {});
-    await detailPage.waitForLoadState("domcontentloaded", { timeout: 9000 }).catch(() => {});
-    await detailPage.waitForTimeout(1200);
-
-    const seenPlacementUrls = new Set();
-    const collectFromPlacementPage = async (placementPage) => {
-      const sourceUrl = placementPage.url();
-      if (!isPlacementMissionListUrl(sourceUrl)) {
-        return 0;
-      }
-      if (seenPlacementUrls.has(sourceUrl)) {
-        return 0;
-      }
-      seenPlacementUrls.add(sourceUrl);
-
-      const actions = await collectMissionActionsWithScroll(placementPage, actionKeywords);
-      actions.forEach((action) => {
-        const mission = {
-          ...action,
-          waitSeconds: action.waitSeconds ?? defaultWaitSeconds,
-          waitSource: action.waitSource || "default-wait-seconds",
-          sourceListUrl: sourceUrl,
-        };
-        const key = missionKey(mission);
-        if (!discoveredMap.has(key)) {
-          discoveredMap.set(key, mission);
-        }
-      });
-      console.log(
-        `[run] mission list detected (${sourceUrl}) -> ${actions.length} candidate(s)`,
-      );
-      return actions.length;
-    };
-
-    let collectedCount = 0;
-    if (isPlacementMissionListUrl(detailPage.url())) {
-      collectedCount += await collectFromPlacementPage(detailPage);
-    } else {
-      const categoryUrl = detailPage.url();
-      const categoryActions = await collectMissionActionsWithScroll(detailPage, actionKeywords);
-      categoryActions.forEach((action) => {
-        const mission = {
-          ...action,
-          waitSeconds: action.waitSeconds ?? defaultWaitSeconds,
-          waitSource: action.waitSource || "default-wait-seconds",
-          sourceListUrl: categoryUrl,
-        };
-        const key = missionKey(mission);
-        if (!discoveredMap.has(key)) {
-          discoveredMap.set(key, mission);
-        }
-      });
-      if (categoryActions.length > 0) {
-        console.log(
-          `[run] category mission actions detected (${categoryUrl}) -> ${categoryActions.length} candidate(s)`,
-        );
-        collectedCount += categoryActions.length;
-      }
-
-      const placementTargetsRaw = categoryActions.filter((action) =>
-        isPlacementMissionListUrl(action?.href),
-      );
-      const placementTargets = (requireNClickMainLink
-        ? placementTargetsRaw.filter((action) => hasNClickBadgeText(action))
-        : placementTargetsRaw
-      ).filter(Boolean);
-      const uniquePlacementTargets = [
-        ...new Map(placementTargets.map((action) => [String(action.href), action])).values(),
-      ];
-
-      console.log(
-        `[run] category list detected (${categoryUrl}) -> placement links ${uniquePlacementTargets.length}`,
-      );
-
-      for (const targetPlacement of uniquePlacementTargets) {
-        try {
-          await detailPage.goto(targetPlacement.href, { waitUntil: "domcontentloaded" });
-          await detailPage.waitForTimeout(1200);
-        } catch {
-          continue;
-        }
-        collectedCount += await collectFromPlacementPage(detailPage);
-      }
-    }
-
-    if (collectedCount === 0) {
-      console.log(`[run] no mission candidates harvested from ${detailPage.url()}`);
-    }
-
-    if (detailPage !== page && !detailPage.isClosed()) {
-      await detailPage.close().catch(() => {});
-    }
-  }
-
-  await page.goto(MAIN_URL, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(1000);
-  return [...discoveredMap.values()];
-}
 
 async function main() {
   const args = parseCliArgs(process.argv.slice(2));
@@ -562,7 +265,7 @@ async function main() {
           context,
           actionKeywords,
           defaultWaitSeconds,
-          { requireNClickMainLink: onlyNClickCampaigns },
+          { requireNClickMainLink: onlyNClickCampaigns, logPrefix: "[run]" },
         );
         console.log(
           `[run] discovered ${plannedMissions.length} mission candidate(s) from main page links`,
