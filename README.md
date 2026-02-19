@@ -30,12 +30,14 @@
 
 ## 저장소 구성
 
-- `SKILL.md`: Codex skill 설명
+- `SKILL.md`: 공통 스킬 설명(멀티 에이전트 공용)
 - `scripts/run_missions.mjs`: 미션 실행 스크립트
 - `scripts/discover_missions.mjs`: 미션 후보 수집 스크립트
 - `scripts/naverpay_helpers.mjs`: URL/셀렉터/클릭/대기 계산 유틸
+- `scripts/install_skill.mjs`: AI별 스킬 경로에 설치하는 헬퍼
 - `references/prerequisites.md`: 사전 준비 사항
 - `references/execution-checklist.md`: 실행 체크리스트
+- `agents/*.yaml`: AI별 매니페스트(`openai`, `claude`, `gemini`, `antigravity`)
 
 ## 요구사항
 
@@ -46,6 +48,50 @@
 ```bash
 npm install -D playwright
 npx playwright install chromium
+```
+
+## 멀티 AI 스킬 설치
+
+이 프로젝트는 `SKILL.md + scripts + references`를 공통 엔진으로 사용하고,
+`agents/*.yaml`로 AI별 메타데이터만 분리했습니다.
+
+기본 설치(모든 타겟):
+
+```bash
+node scripts/install_skill.mjs --target all
+```
+
+타겟별 기본 설치 경로:
+
+- `codex`/`openai`: `$CODEX_HOME/skills` (없으면 `~/.agents/skills`)
+- `claude`: `~/.claude/skills`
+- `gemini`: `~/.gemini/skills`
+- `antigravity`: `~/.antigravity/skills`
+
+특정 타겟만 설치:
+
+```bash
+node scripts/install_skill.mjs --target claude
+node scripts/install_skill.mjs --target gemini
+node scripts/install_skill.mjs --target antigravity
+```
+
+기타 AI 에이전트용(직접 skill 루트 지정):
+
+```bash
+node scripts/install_skill.mjs --target custom --dest ~/.my-agent/skills
+```
+
+커스텀 경로 설치(단일 타겟):
+
+```bash
+node scripts/install_skill.mjs --target gemini --dest ~/.config/gemini/skills
+```
+
+설치 전 경로만 확인:
+
+```bash
+node scripts/install_skill.mjs --target all --dry-run true
 ```
 
 ## 빠른 시작
