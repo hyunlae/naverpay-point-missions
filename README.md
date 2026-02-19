@@ -1,5 +1,7 @@
 # naverpay-point-missions
 
+> **설치 요약**: `git clone https://github.com/hyunlae/naverpay-point-missions.git && cd naverpay-point-missions && npm install && npx playwright install chromium`
+
 네이버페이 포인트 페이지(`https://point.pay.naver.com/pc/main`)의 클릭/방문 미션을 Playwright로 반복 실행하는 자동화 스킬입니다.
 
 핵심 목표:
@@ -49,6 +51,19 @@
 npm install -D playwright
 npx playwright install chromium
 ```
+
+## GitHub에서 설치하기
+
+GitHub 저장소에서 바로 내려받아 실행 환경을 준비하려면 아래를 순서대로 수행하세요.
+
+```bash
+git clone https://github.com/hyunlae/naverpay-point-missions.git
+cd naverpay-point-missions
+npm install
+npx playwright install chromium
+```
+
+설치가 끝나면 바로 스킬 설치 스크립트나 실행 스크립트를 사용해 테스트할 수 있습니다.
 
 ## 멀티 AI 스킬 설치
 
