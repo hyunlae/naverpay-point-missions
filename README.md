@@ -168,7 +168,7 @@ node scripts/run_missions.mjs \
 - `--default-wait-seconds <n>`: 대기 시간 미검출 시 기본값(기본 `7`)
 - `--min-wait-seconds <n>`: 최소 대기 시간(기본 `3`)
 - `--max-wait-seconds <n>`: 최대 대기 시간(기본 `120`)
-- `--max <num>`: 최대 수행 개수(기본 `10`)
+- `--max <num>`: 최대 수행 개수(기본 `100`)
 - `--headless <true|false>`: 헤드리스 실행 여부
 - `--dry-run <true|false>`: 실제 클릭 없이 타겟 매칭만 수행
 - `--login-timeout-sec <num>`: 로그인 대기 제한 시간

@@ -53,7 +53,7 @@ Options:
   --min-wait-seconds <n>       Minimum dwell time clamp (default: 3)
   --max-wait-seconds <n>       Maximum dwell time clamp (default: 120)
   --wait-seconds <n>           Legacy alias of --default-wait-seconds
-  --max <num>                  Maximum missions to execute (default: 10)
+  --max <num>                  Maximum missions to execute (default: 100)
   --headless <true|false>      Run headless browser (default: false)
   --dry-run <true|false>       Print selected targets only (default: false)
   --login-timeout-sec <num>    Login wait timeout in seconds (default: 240)
@@ -528,7 +528,7 @@ async function main() {
         })();
   const minWaitSeconds = getNumberArg(args, "min-wait-seconds", 3);
   const maxWaitSeconds = getNumberArg(args, "max-wait-seconds", 120);
-  const maxCount = getNumberArg(args, "max", 10);
+  const maxCount = getNumberArg(args, "max", 100);
   const actionKeywords = parseCsvArg(args.keywords, DEFAULT_ACTION_KEYWORDS);
   const claimKeywords = parseCsvArg(args["claim-keywords"], DEFAULT_STRICT_CLAIM_LABELS);
   const popupPrimaryLabel = getStringArg(
