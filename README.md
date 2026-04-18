@@ -87,7 +87,7 @@ npx playwright install chromium
 - `CHANGELOG.md`
 - `package.json`
 
-release 준비:
+1단계, release 파일 준비:
 
 ```bash
 node scripts/release.mjs --version 1.0.0 --notes "Initial release"
@@ -103,7 +103,22 @@ npm run release -- --version 1.0.0 --notes "Initial release"
 
 - `VERSION`
 - `package.json`의 `version`
+- `package-lock.json`의 `version`
 - `CHANGELOG.md`
+
+2단계, 커밋과 push 이후 GitHub Release publish:
+
+```bash
+node scripts/release.mjs --version 1.0.0 --publish-github true --skip-prepare true
+```
+
+이 단계는 다음을 전제로 합니다.
+
+- release 관련 파일이 이미 커밋되어 있을 것
+- 현재 브랜치 HEAD가 upstream에 push되어 있을 것
+- 워킹트리가 깨끗할 것
+
+GitHub Release publish 시에는 저장소의 project-local GitHub 인증 파일이 있으면 그 설정을 우선 사용하고, 없으면 현재 `gh` CLI 인증을 사용합니다.
 
 ## 멀티 AI 스킬 등록
 
