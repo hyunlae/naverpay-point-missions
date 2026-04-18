@@ -1,33 +1,33 @@
 # naverpay-point-missions
 
-> **Quick install**: `git clone https://github.com/hyunlae/naverpay-point-missions.git && cd naverpay-point-missions && npm install && npx playwright install chromium && node scripts/install_skill.mjs --target codex --mode link`
+> **빠른 설치**: `git clone https://github.com/hyunlae/naverpay-point-missions.git && cd naverpay-point-missions && npm install && npx playwright install chromium && node scripts/install_skill.mjs --target codex --mode link`
 >
-> **One-line pitch**: Reviewed Playwright automation for NaverPay point missions with first-login bootstrap, headless reruns, and multi-agent packaging for Codex, Claude Code, and Gemini CLI.
+> **한 줄 소개**: 최초 로그인 유도, 이후 헤드리스 재실행, 다중 에이전트 패키징을 지원하는 네이버페이 포인트 미션용 검토 기반 Playwright 자동화 도구입니다.
 
-This skill runs NaverPay point missions from `https://point.pay.naver.com/pc/main` through a reviewed-snapshot workflow. Instead of clicking newly discovered campaigns immediately, it collects mission candidates first, lets you review the JSON, and then executes only the approved set.
+이 도구는 `https://point.pay.naver.com/pc/main`의 네이버페이 포인트 미션을 검토용 스냅샷 흐름으로 실행합니다. 새로 발견한 캠페인을 즉시 클릭하지 않고, 먼저 후보를 수집한 뒤 JSON을 검토하고, 승인한 항목만 실행하는 것을 기본으로 합니다.
 
-Best for:
+이 스킬이 특히 적합한 경우:
 
-- users who want repeatable NaverPay mission runs but still want to review new campaigns first
-- teams that want first login to stay visible and manual, then reuse the same `--state-dir` in headless mode
-- setups that share one repo-backed skill runtime across Codex, Claude Code, and Gemini CLI
+- 네이버페이 미션을 반복 실행하되 신규 캠페인은 먼저 검토하고 싶을 때
+- 최초 로그인만 화면에서 수동으로 처리하고, 이후에는 같은 `--state-dir`를 헤드리스로 재사용하고 싶을 때
+- Codex, Claude Code, Gemini CLI에서 하나의 저장소 연결형 실행 환경을 공용으로 쓰고 싶을 때
 
-Why it stands out:
+이 도구의 핵심 차별점:
 
-- `reviewed-by-default`: `discover -> JSON review -> run --missions`
-- `manual-first login`: if no session is saved, it opens one visible login window and then resumes headless
-- `repo-backed install`: agent runtimes keep thin links while code and dependencies stay in this repository
+- `reviewed-by-default`: `discover -> JSON 검토 -> run --missions`
+- `manual-first login`: 저장된 세션이 없으면 화면 브라우저를 한 번 열어 로그인한 뒤 헤드리스로 재개
+- `repo-backed install`: 에이전트 런타임에는 얇은 링크만 두고, 실제 코드와 의존성은 이 저장소에 유지
 
 이 프로젝트는 이제 다음 원칙을 기본으로 합니다.
 
 - `reviewed-by-default`: 먼저 미션을 수집하고, 사람이 JSON을 검토한 뒤 실행합니다.
 - `repo-backed install`: AI 런타임에는 이 저장소를 기본적으로 `link` 방식으로 등록합니다.
-- `live discovery is advanced`: 실시간 수집 후 즉시 실행은 가능하지만, 명시적 opt-in 이 있어야 합니다.
-- `headless login bootstrap`: `--headless true`인데 저장된 로그인 세션이 없으면, 같은 `--state-dir`로 화면 브라우저를 잠깐 띄워 최초 로그인 후 다시 headless로 이어집니다.
+- `실시간 수집 즉시 실행은 고급 모드`: 실시간 수집 후 즉시 실행은 가능하지만, 명시적 opt-in 이 있어야 합니다.
+- `헤드리스 로그인 유도`: `--headless true`인데 저장된 로그인 세션이 없으면, 같은 `--state-dir`로 화면 브라우저를 잠깐 띄워 최초 로그인 후 다시 헤드리스로 이어집니다.
 
 ## 제품 모델
 
-이 스킬은 "클론한 저장소 자체"가 실행 루트입니다.
+이 도구는 "클론한 저장소 자체"가 실행 루트입니다.
 
 - 추천 설치 방식: 저장소를 클론하고 의존성을 설치한 뒤, 각 AI 런타임에 이 저장소를 `link` 방식으로 등록
 - 기본 실행 방식: `discover -> JSON 검토 -> run --missions`
@@ -50,12 +50,12 @@ Why it stands out:
 이제 `discover`와 `run`은 모두 같은 로그인 규칙을 따릅니다.
 
 1. `--headless true`로 시작
-2. 해당 `--state-dir`에 저장된 로그인 세션이 있으면 바로 headless 실행
+2. 해당 `--state-dir`에 저장된 로그인 세션이 있으면 바로 헤드리스 실행
 3. 저장된 세션이 없으면 화면 브라우저가 한 번 열림
 4. 그 창에서 네이버 로그인을 수동으로 완료
-5. 세션이 저장되면 같은 실행이 다시 headless로 이어짐
+5. 세션이 저장되면 같은 실행이 다시 헤드리스로 이어짐
 
-즉, "최초 로그인만 화면, 이후에는 같은 `--state-dir`로 headless 재사용"이 기본 흐름입니다.
+즉, "최초 로그인만 화면, 이후에는 같은 `--state-dir`로 헤드리스 재사용"이 기본 흐름입니다.
 
 ## 저장소 구성
 
@@ -93,7 +93,7 @@ npx playwright install chromium
 
 ## skills.sh
 
-이 저장소는 `skills` CLI가 인식하는 공개 skill repo 형식도 함께 만족합니다.
+이 저장소는 `skills` CLI가 인식하는 공개 스킬 저장소 형식도 함께 만족합니다.
 
 공개 설치/탐색 커맨드:
 
@@ -103,14 +103,14 @@ npx skills add hyunlae/naverpay-point-missions --skill naverpay-point-missions
 
 목적:
 
-- `skills.sh`/`skills` 생태계에서 이 skill을 발견하고 설치하기
-- leaderboard telemetry 경로를 타기
-- GitHub 저장소만으로 skill repo 형식을 검증하기
+- `skills.sh`/`skills` 생태계에서 이 스킬을 발견하고 설치하기
+- 리더보드 집계 경로를 타기
+- GitHub 저장소만으로 스킬 저장소 형식을 검증하기
 
 주의:
 
 - `skills` CLI로는 이 저장소가 정상 인식됩니다.
-- 다만 현재 확인된 동작 기준으로는 Codex 전용 글로벌 설치 경로(`~/.codex/skills`)보다 canonical copy(`~/.agents/skills/...`) 중심으로 배치되며, agent 표기도 Codex와 정확히 일치하지 않을 수 있습니다.
+- 다만 현재 확인된 동작 기준으로는 Codex 전용 글로벌 설치 경로(`~/.codex/skills`)보다 기준 복사본(`~/.agents/skills/...`) 중심으로 배치되며, 에이전트 표기도 Codex와 정확히 일치하지 않을 수 있습니다.
 - 그래서 실제 Codex 런타임에는 아래의 `repo-backed link` 설치를 계속 권장합니다.
 
 Codex 권장 설치:
@@ -119,20 +119,20 @@ Codex 권장 설치:
 node scripts/install_skill.mjs --target codex --mode link
 ```
 
-## Distribution Priority
+## 배포 우선순위
 
 현재 기준으로는 아래 순서로 노출을 챙기는 것이 가장 효율적입니다.
 
-1. `skills.sh`: 공개 skill 인덱스이자 install telemetry의 source of truth
-2. `SkillsGate`: `skills.sh` 공개 skill을 브라우징/설치하는 UI 레이어
+1. `skills.sh`: 공개 스킬 인덱스이자 설치 집계의 기준 원천
+2. `SkillsGate`: `skills.sh` 공개 스킬을 브라우징/설치하는 UI 계층
 3. `AgentSkills`: 별도 탐색 트래픽과 카테고리 노출을 기대할 수 있는 독립 디렉터리
-4. `ClawHub` / Claude 전용 marketplace: OpenClaw 또는 Claude 전용 패키징이 추가될 때 검토
+4. `ClawHub` / Claude 전용 마켓플레이스: OpenClaw 또는 Claude 전용 패키징이 추가될 때 검토
 
 즉, 지금 이 저장소는 `skills.sh`와 `AgentSkills`에 맞춘 메타데이터를 우선 최적화하고, `SkillsGate`는 그 결과를 자연스럽게 따라오게 만드는 전략이 맞습니다.
 
-## Release
+## 릴리스
 
-현재 첫 release 버전은 `1.0.0`입니다.
+현재 첫 릴리스 버전은 `1.0.0`입니다.
 
 관련 파일:
 
@@ -140,37 +140,37 @@ node scripts/install_skill.mjs --target codex --mode link
 - `CHANGELOG.md`
 - `package.json`
 
-1단계, release 파일 준비:
+1단계, 릴리스 파일 준비:
 
 ```bash
-node scripts/release.mjs --version 1.0.0 --notes "Initial release"
+node scripts/release.mjs --version 1.0.0 --notes "첫 릴리스"
 ```
 
 또는 npm script:
 
 ```bash
-npm run release -- --version 1.0.0 --notes "Initial release"
+npm run release -- --version 1.0.0 --notes "첫 릴리스"
 ```
 
-이 명령은 다음을 함께 갱신합니다.
+이 명령은 다음 파일을 함께 갱신합니다.
 
 - `VERSION`
 - `package.json`의 `version`
 - `package-lock.json`의 `version`
 - `CHANGELOG.md`
 
-GitHub Release notes는 `CHANGELOG.md`의 해당 버전 섹션을 바탕으로 다음 형식으로 정리됩니다.
+GitHub 릴리스 노트는 `CHANGELOG.md`의 해당 버전 섹션을 바탕으로 다음 형식으로 정리됩니다.
 
 ```md
 # 1.0.0
 
-Released: 2026-04-18
+배포일: 2026-04-18
 
-## Highlights
-- Initial release
+## 주요 내용
+- 첫 릴리스
 ```
 
-2단계, 커밋과 push 이후 GitHub Release publish:
+2단계, 커밋과 push 이후 GitHub 릴리스 발행:
 
 ```bash
 node scripts/release.mjs --version 1.0.0 --publish-github true --skip-prepare true
@@ -178,28 +178,28 @@ node scripts/release.mjs --version 1.0.0 --publish-github true --skip-prepare tr
 
 이 단계는 다음을 전제로 합니다.
 
-- release 관련 파일이 이미 커밋되어 있을 것
+- 릴리스 관련 파일이 이미 커밋되어 있을 것
 - 현재 브랜치 HEAD가 upstream에 push되어 있을 것
 - 워킹트리가 깨끗할 것
 
-GitHub Release publish 시에는 저장소의 project-local GitHub 인증 파일이 있으면 그 설정을 우선 사용하고, 없으면 현재 `gh` CLI 인증을 사용합니다.
+GitHub 릴리스를 발행할 때는 저장소의 project-local GitHub 인증 파일이 있으면 그 설정을 우선 사용하고, 없으면 현재 `gh` CLI 인증을 사용합니다.
 
-### GitHub Actions 자동 publish
+### GitHub Actions 자동 발행
 
 이 저장소에는 `.github/workflows/release.yml`이 포함되어 있습니다.
 
 - 트리거: `v*` 형식 tag push
 - 권한: `contents: write`
-- 동작: checkout 후 `node scripts/release.mjs --version "${{ github.ref_name }}" --publish-github true --skip-prepare true` 실행
+- 동작: 저장소를 체크아웃한 뒤 `node scripts/release.mjs --version "${{ github.ref_name }}" --publish-github true --skip-prepare true` 실행
 
-즉, release 파일을 준비해서 커밋/푸시한 뒤 아래처럼 tag를 올리면 GitHub Release가 자동으로 발행됩니다.
+즉, 릴리스 파일을 준비해서 커밋/푸시한 뒤 아래처럼 tag를 올리면 GitHub 릴리스가 자동으로 발행됩니다.
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-기존처럼 수동 publish도 가능하지만, 앞으로 기본 운영 경로는 `release commit -> push -> tag push -> GitHub Actions publish`입니다.
+기존처럼 수동 발행도 가능하지만, 앞으로 기본 운영 경로는 `릴리스 커밋 -> push -> tag push -> GitHub Actions 발행`입니다.
 
 ## 멀티 AI 스킬 등록
 
@@ -235,7 +235,7 @@ node scripts/install_skill.mjs --target all --mode link --dry-run true
 
 ### `copy` 모드
 
-`copy` 모드는 대체 경로입니다.
+`copy` 모드는 대체 설치 방식입니다.
 
 ```bash
 node scripts/install_skill.mjs --target custom --dest ~/.my-agent/skills --mode copy
@@ -313,7 +313,7 @@ node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile-b --missions
 ## `run_missions.mjs` 주요 옵션
 
 - `--missions <path>`: 검토된 미션 JSON 경로
-- `--live-discovery <bool>`: reviewed JSON 없이 즉시 수집/실행할지 여부(기본 `false`)
+- `--live-discovery <bool>`: 검토용 JSON 없이 즉시 수집/실행할지 여부(기본 `false`)
 - `--state-dir <path>`: Playwright 프로필 경로 (기본: `./.state/naverpay-profile`)
 - `--completed-store <path>`: 완료 캠페인 저장 파일 경로
 - `--ignore-completed <bool>`: 완료 이력 무시하고 재시도할지 여부
@@ -327,7 +327,7 @@ node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile-b --missions
 - `--max-wait-seconds <n>`: 최대 대기 시간(기본 `120`)
 - `--max <num>`: 최대 수행 개수(기본 `200`)
 - `--headless <true|false>`: 헤드리스 실행 여부
-- `--headless true`인데 세션이 없으면, 화면 브라우저가 자동으로 한 번 열려 수동 로그인 후 다시 headless로 재개
+- `--headless true`인데 세션이 없으면, 화면 브라우저가 자동으로 한 번 열려 수동 로그인 후 다시 헤드리스로 재개
 - `--dry-run <true|false>`: 실제 클릭 없이 타깃 매칭만 수행
 - `--login-timeout-sec <num>`: 로그인 대기 제한 시간
 
@@ -344,7 +344,7 @@ node scripts/run_missions.mjs --help
 - `--keywords <csv>`: 수집 대상 액션 키워드 필터
 - `--default-wait-seconds <n>`: 대기 시간 미검출 시 수집 결과에 넣을 기본값(기본 `7`)
 - `--headless <true|false>`: 헤드리스 실행 여부
-- `--headless true`인데 세션이 없으면, 화면 브라우저가 자동으로 한 번 열려 수동 로그인 후 다시 headless로 재개
+- `--headless true`인데 세션이 없으면, 화면 브라우저가 자동으로 한 번 열려 수동 로그인 후 다시 헤드리스로 재개
 - `--login-timeout-sec <num>`: 로그인 대기 제한 시간
 
 도움말:
@@ -381,8 +381,8 @@ node scripts/discover_missions.mjs --help
 
 ## 트러블슈팅
 
-- 로그인 타임아웃: `--login-timeout-sec` 증가. `--headless true`였다면 화면 로그인 bootstrap 창에서 먼저 로그인 완료
-- `run_missions`가 바로 실패: 기본값이 reviewed mode 이므로 `--missions` 또는 `--live-discovery true` 확인
+- 로그인 타임아웃: `--login-timeout-sec` 증가. `--headless true`였다면 화면 로그인 유도 창에서 먼저 로그인 완료
+- `run_missions`가 바로 실패: 기본값이 검토 모드이므로 `--missions` 또는 `--live-discovery true` 확인
 - `포인트 받기` 버튼 미탐지: UI 변경 가능성 높음, `discover` 재실행 후 JSON 검토
 - 일부 캠페인 누락: 페이지 로딩/스크롤 지연 가능성, `--max`를 줄여 재시도
 - 이미 참여한 캠페인 반복: `completed-campaigns.json` 경로가 프로필별로 분리됐는지 확인
@@ -393,5 +393,5 @@ node scripts/discover_missions.mjs --help
 - 처음에는 소량(`--max 5~10`)으로 검증 후 배치 확장
 - 계정별 상태 폴더를 반드시 분리
 - 실행 후 네이버페이 내역 페이지에서 적립 결과를 수동 검증
-- unattended 실행은 반드시 명시적 opt-in(`--live-discovery true`)으로만 사용
+- 무인 실행은 반드시 명시적 opt-in(`--live-discovery true`)으로만 사용
 - 서비스 정책/약관 변경 시 즉시 중단 후 로직 점검
