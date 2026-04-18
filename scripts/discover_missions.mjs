@@ -3,16 +3,17 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
 
 import {
   DEFAULT_ACTION_KEYWORDS,
   discoverMissionsFromMainPointLinks,
-  ensureLoggedIn,
   getBoolArg,
   getNumberArg,
   getStringArg,
+  launchContextWithLoginBootstrap,
   parseCliArgs,
   parseCsvArg,
 } from "./naverpay_helpers.mjs";
@@ -26,13 +27,13 @@ Options:
   --state-dir <path>           Playwright persistent profile path (default: ./.state/naverpay-profile)
   --keywords <csv>             Action keywords filter
   --default-wait-seconds <n>   Fallback waitSeconds in output when no time text exists (default: 7)
-  --headless <true|false>      Run headless browser (default: false)
+  --headless <true|false>      Run headless browser (default: false, auto-opens visible login if session missing)
   --login-timeout-sec <num>    Login wait timeout in seconds (default: 240)
 `);
 }
 
-async function main() {
-  const args = parseCliArgs(process.argv.slice(2));
+export async function main(rawArgs = process.argv.slice(2), deps = {}) {
+  const args = parseCliArgs(rawArgs);
   if (args.help) {
     printUsage();
     return;
@@ -48,17 +49,17 @@ async function main() {
   await mkdir(stateDir, { recursive: true });
   await mkdir(path.dirname(outPath), { recursive: true });
 
-  const context = await chromium.launchPersistentContext(stateDir, {
+  const browserType = deps.browserType ?? chromium;
+  const { context, page } = await launchContextWithLoginBootstrap({
+    browserType,
+    stateDir,
     headless,
-    viewport: { width: 1440, height: 960 },
+    loginTimeoutSec,
+    logPrefix: "[discover]",
   });
 
   try {
-    const page = context.pages()[0] ?? (await context.newPage());
-
     console.log("[discover] opening NaverPay main page for login");
-    console.log("[discover] complete login in the browser window if redirected");
-    await ensureLoggedIn(page, loginTimeoutSec);
 
     const missions = await discoverMissionsFromMainPointLinks(
       page,
@@ -92,7 +93,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(`[discover] failed: ${error.message}`);
-  process.exit(1);
-});
+const isEntrypoint =
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntrypoint) {
+  main().catch((error) => {
+    console.error(`[discover] failed: ${error.message}`);
+    process.exit(1);
+  });
+}

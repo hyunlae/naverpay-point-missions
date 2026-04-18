@@ -29,6 +29,7 @@ export const DEFAULT_ALREADY_COMPLETED_PATTERNS = [
   "이미 적립",
 ];
 export const DEFAULT_ALREADY_COMPLETED_CONFIRM_LABELS = ["확인"];
+export const LOGIN_TIMEOUT_ERROR_PREFIX = "Login did not complete within";
 
 export function parseCliArgs(argv) {
   const args = { _: [] };
@@ -96,7 +97,7 @@ export function getBoolArg(args, key, defaultValue = false) {
     return false;
   }
 
-  return defaultValue;
+  throw new Error(`--${key} expects true/false (received: ${value})`);
 }
 
 export function parseCsvArg(value, fallback) {
@@ -282,8 +283,77 @@ export async function ensureLoggedIn(page, timeoutSec) {
   }
 
   throw new Error(
-    `Login did not complete within ${timeoutSec}s. Complete login in the browser window and retry.`,
+    `${LOGIN_TIMEOUT_ERROR_PREFIX} ${timeoutSec}s. Complete login in the browser window and retry.`,
   );
+}
+
+export function isLoginTimeoutError(error) {
+  return String(error?.message ?? "").startsWith(LOGIN_TIMEOUT_ERROR_PREFIX);
+}
+
+export async function launchContextWithLoginBootstrap(options = {}) {
+  const {
+    browserType,
+    stateDir,
+    headless = false,
+    viewport = { width: 1440, height: 960 },
+    loginTimeoutSec = 240,
+    logPrefix = "[login]",
+    ensureLoggedInFn = ensureLoggedIn,
+  } = options;
+
+  if (!browserType?.launchPersistentContext) {
+    throw new Error("browserType.launchPersistentContext is required.");
+  }
+
+  const sessionCheckTimeoutSec = Math.max(5, Math.min(loginTimeoutSec, 15));
+  const launch = async (nextHeadless) => {
+    const context = await browserType.launchPersistentContext(stateDir, {
+      headless: nextHeadless,
+      viewport,
+    });
+    const page = context.pages()[0] ?? (await context.newPage());
+    return { context, page };
+  };
+
+  const initial = await launch(headless);
+  if (!headless) {
+    await ensureLoggedInFn(initial.page, loginTimeoutSec);
+    return { ...initial, bootstrappedHeadfulLogin: false };
+  }
+
+  try {
+    await ensureLoggedInFn(initial.page, sessionCheckTimeoutSec);
+    return { ...initial, bootstrappedHeadfulLogin: false };
+  } catch (error) {
+    await initial.context.close();
+    if (!isLoginTimeoutError(error)) {
+      throw error;
+    }
+
+    console.log(`${logPrefix} no saved login session found for ${stateDir}; opening visible browser`);
+
+    let visible = null;
+    try {
+      visible = await launch(false);
+      console.log(`${logPrefix} complete login in the visible browser window`);
+      await ensureLoggedInFn(visible.page, loginTimeoutSec);
+    } finally {
+      if (visible?.context) {
+        await visible.context.close();
+      }
+    }
+
+    const resumed = await launch(true);
+    try {
+      await ensureLoggedInFn(resumed.page, sessionCheckTimeoutSec);
+      console.log(`${logPrefix} login session saved; resuming headless execution`);
+      return { ...resumed, bootstrappedHeadfulLogin: true };
+    } catch (error) {
+      await resumed.context.close();
+      throw error;
+    }
+  }
 }
 
 export function isMissionDetailUrl(urlText) {

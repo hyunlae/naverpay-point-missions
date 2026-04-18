@@ -9,6 +9,7 @@
 - `reviewed-by-default`: 먼저 미션을 수집하고, 사람이 JSON을 검토한 뒤 실행합니다.
 - `repo-backed install`: AI 런타임에는 이 저장소를 기본적으로 `link` 방식으로 등록합니다.
 - `live discovery is advanced`: 실시간 수집 후 즉시 실행은 가능하지만, 명시적 opt-in 이 있어야 합니다.
+- `headless login bootstrap`: `--headless true`인데 저장된 로그인 세션이 없으면, 같은 `--state-dir`로 화면 브라우저를 잠깐 띄워 최초 로그인 후 다시 headless로 이어집니다.
 
 ## 제품 모델
 
@@ -29,6 +30,18 @@
 - 캠페인 완료 이력 저장(`completed-campaigns.json`)으로 재수행 방지
 - 다중 계정 프로필(`--state-dir`) 분리 실행 지원
 - Codex/Claude/Gemini/Antigravity용 등록 스크립트 제공
+
+## 로그인 동작
+
+이제 `discover`와 `run`은 모두 같은 로그인 규칙을 따릅니다.
+
+1. `--headless true`로 시작
+2. 해당 `--state-dir`에 저장된 로그인 세션이 있으면 바로 headless 실행
+3. 저장된 세션이 없으면 화면 브라우저가 한 번 열림
+4. 그 창에서 네이버 로그인을 수동으로 완료
+5. 세션이 저장되면 같은 실행이 다시 headless로 이어짐
+
+즉, "최초 로그인만 화면, 이후에는 같은 `--state-dir`로 headless 재사용"이 기본 흐름입니다.
 
 ## 저장소 구성
 
@@ -63,6 +76,34 @@ cd naverpay-point-missions
 npm install
 npx playwright install chromium
 ```
+
+## Release
+
+현재 첫 release 버전은 `1.0.0`입니다.
+
+관련 파일:
+
+- `VERSION`
+- `CHANGELOG.md`
+- `package.json`
+
+release 준비:
+
+```bash
+node scripts/release.mjs --version 1.0.0 --notes "Initial release"
+```
+
+또는 npm script:
+
+```bash
+npm run release -- --version 1.0.0 --notes "Initial release"
+```
+
+이 명령은 다음을 함께 갱신합니다.
+
+- `VERSION`
+- `package.json`의 `version`
+- `CHANGELOG.md`
 
 ## 멀티 AI 스킬 등록
 
@@ -117,10 +158,11 @@ node scripts/install_skill.mjs --target custom --dest ~/.my-agent/skills --mode 
 node scripts/discover_missions.mjs \
   --state-dir ./.state/naverpay-profile \
   --out /tmp/naverpay-missions.json \
-  --headless false
+  --headless true
 ```
 
-처음에는 이 명령으로 브라우저를 띄워 로그인 세션과 첫 스냅샷을 함께 만드세요.
+처음 실행이라면 로그인 세션이 없기 때문에 화면 브라우저가 잠깐 열립니다.
+그 창에서 로그인만 완료하면, 같은 `--state-dir`에 세션이 저장되고 이후 단계는 headless로 이어집니다.
 
 ### 2) JSON 검토
 
@@ -170,6 +212,8 @@ node scripts/discover_missions.mjs --state-dir ./.state/naverpay-profile-b --out
 node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile-b --missions /tmp/naverpay-b.json --headless true --max 200
 ```
 
+각 계정의 첫 실행에서는 해당 `--state-dir` 기준으로 화면 브라우저가 한 번 열릴 수 있습니다.
+
 ## `run_missions.mjs` 주요 옵션
 
 - `--missions <path>`: 검토된 미션 JSON 경로
@@ -187,6 +231,7 @@ node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile-b --missions
 - `--max-wait-seconds <n>`: 최대 대기 시간(기본 `120`)
 - `--max <num>`: 최대 수행 개수(기본 `200`)
 - `--headless <true|false>`: 헤드리스 실행 여부
+- `--headless true`인데 세션이 없으면, 화면 브라우저가 자동으로 한 번 열려 수동 로그인 후 다시 headless로 재개
 - `--dry-run <true|false>`: 실제 클릭 없이 타깃 매칭만 수행
 - `--login-timeout-sec <num>`: 로그인 대기 제한 시간
 
@@ -194,6 +239,22 @@ node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile-b --missions
 
 ```bash
 node scripts/run_missions.mjs --help
+```
+
+## `discover_missions.mjs` 주요 옵션
+
+- `--out <path>`: 수집 결과 JSON 저장 경로
+- `--state-dir <path>`: Playwright 프로필 경로 (기본: `./.state/naverpay-profile`)
+- `--keywords <csv>`: 수집 대상 액션 키워드 필터
+- `--default-wait-seconds <n>`: 대기 시간 미검출 시 수집 결과에 넣을 기본값(기본 `7`)
+- `--headless <true|false>`: 헤드리스 실행 여부
+- `--headless true`인데 세션이 없으면, 화면 브라우저가 자동으로 한 번 열려 수동 로그인 후 다시 headless로 재개
+- `--login-timeout-sec <num>`: 로그인 대기 제한 시간
+
+도움말:
+
+```bash
+node scripts/discover_missions.mjs --help
 ```
 
 ## 완료 이력(중복 방지)
@@ -224,7 +285,7 @@ node scripts/run_missions.mjs --help
 
 ## 트러블슈팅
 
-- 로그인 타임아웃: `--login-timeout-sec` 증가, 먼저 headful로 세션 저장
+- 로그인 타임아웃: `--login-timeout-sec` 증가. `--headless true`였다면 화면 로그인 bootstrap 창에서 먼저 로그인 완료
 - `run_missions`가 바로 실패: 기본값이 reviewed mode 이므로 `--missions` 또는 `--live-discovery true` 확인
 - `포인트 받기` 버튼 미탐지: UI 변경 가능성 높음, `discover` 재실행 후 JSON 검토
 - 일부 캠페인 누락: 페이지 로딩/스크롤 지연 가능성, `--max`를 줄여 재시도

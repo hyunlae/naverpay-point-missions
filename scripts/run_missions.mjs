@@ -21,7 +21,6 @@ import {
   collectMissionActionsWithScroll,
   detectAlreadyCompletedPopup,
   discoverMissionsFromMainPointLinks,
-  ensureLoggedIn,
   findBestAction,
   gotoClickMissionList,
   getBoolArg,
@@ -31,6 +30,7 @@ import {
   hasNClickBadgeText,
   isMissionDetailUrl,
   isPlacementMissionListUrl,
+  launchContextWithLoginBootstrap,
   loadMissionArray,
   missionKey,
   parseCliArgs,
@@ -62,7 +62,7 @@ Options:
   --max-wait-seconds <n>       Maximum dwell time clamp (default: 120)
   --wait-seconds <n>           Legacy alias of --default-wait-seconds
   --max <num>                  Maximum missions to execute (default: 200)
-  --headless <true|false>      Run headless browser (default: false)
+  --headless <true|false>      Run headless browser (default: false, auto-opens visible login if session missing)
   --dry-run <true|false>       Print selected targets only (default: false)
   --login-timeout-sec <num>    Login wait timeout in seconds (default: 240)
 `);
@@ -79,6 +79,14 @@ async function loadPlannedMissions(pathOrEmpty) {
   const raw = await readFile(pathOrEmpty, "utf8");
   const payload = JSON.parse(raw);
   return loadMissionArray(payload);
+}
+
+export async function preloadReviewedMissions(missionsPath) {
+  const plannedMissions = await loadPlannedMissions(missionsPath);
+  return plannedMissions.map((mission) => ({
+    ...mission,
+    sourceListUrl: missionSourceUrl(mission),
+  }));
 }
 
 export function resolveRunOptions(rawArgs = process.argv.slice(2)) {
@@ -276,13 +284,24 @@ function pickBestMissionMatch(sourceMissions, currentActions, done, completedKey
 }
 
 
-export async function main(rawArgs = process.argv.slice(2)) {
+export async function main(rawArgs = process.argv.slice(2), deps = {}) {
   const options = resolveRunOptions(rawArgs);
   if (options.help) {
     printUsage();
     return;
   }
   validateRunOptions(options);
+
+  const reviewedMissions = options.missionsPath
+    ? await preloadReviewedMissions(options.missionsPath)
+    : [];
+  if (options.missionsPath) {
+    console.log(`[run] loaded ${reviewedMissions.length} missions from ${options.missionsPath}`);
+    if (reviewedMissions.length === 0) {
+      console.log(`[run] no missions found in reviewed snapshot: ${options.missionsPath}`);
+      return;
+    }
+  }
 
   const {
     actionKeywords,
@@ -307,30 +326,20 @@ export async function main(rawArgs = process.argv.slice(2)) {
 
   await mkdir(stateDir, { recursive: true });
 
-  const context = await chromium.launchPersistentContext(stateDir, {
+  const browserType = deps.browserType ?? chromium;
+  const { context, page } = await launchContextWithLoginBootstrap({
+    browserType,
+    stateDir,
     headless,
-    viewport: { width: 1440, height: 960 },
+    loginTimeoutSec,
+    logPrefix: "[run]",
   });
 
   try {
-    const page = context.pages()[0] ?? (await context.newPage());
-
     console.log("[run] opening NaverPay main page");
-    console.log("[run] complete login in browser if redirected");
-    await ensureLoggedIn(page, loginTimeoutSec);
 
-    let plannedMissions = await loadPlannedMissions(missionsPath);
-    if (missionsPath) {
-      plannedMissions = plannedMissions.map((mission) => ({
-        ...mission,
-        sourceListUrl: missionSourceUrl(mission),
-      }));
-      console.log(`[run] loaded ${plannedMissions.length} missions from ${missionsPath}`);
-      if (plannedMissions.length === 0) {
-        console.log(`[run] no missions found in reviewed snapshot: ${missionsPath}`);
-        return;
-      }
-    } else if (liveDiscovery) {
+    let plannedMissions = reviewedMissions;
+    if (!missionsPath && liveDiscovery) {
       if (scanMainPointLinks) {
         plannedMissions = await discoverMissionsFromMainPointLinks(
           page,

@@ -1,6 +1,8 @@
 {
+  "version": "1.0.0",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "playwright": "^1.58.2"

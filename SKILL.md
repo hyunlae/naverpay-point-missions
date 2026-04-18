@@ -9,6 +9,7 @@ description: Execute NaverPay point-earning missions from https://point.pay.nave
 
 Run repetitive NaverPay mission flows safely with manual login retained.
 Use provided scripts to discover mission buttons first, then execute actions with popup-claim and waiting steps.
+When `--headless true` is used without a saved session, the same `--state-dir` briefly opens a visible browser for the first manual login and then resumes headless.
 Mission collection is fixed to click-event mission list page:
 `https://point.pay.naver.com/pc/mission-detail?dataType=placement&pageKey=benefit_group_pp&rankType=RANDOM_DAILY&sortCompletedAdToLast=true&mssCode=pp`.
 
@@ -20,8 +21,11 @@ Mission collection is fixed to click-event mission list page:
 ```bash
 node scripts/discover_missions.mjs \
   --state-dir ./.state/naverpay-profile \
-  --out /tmp/naverpay-missions.json
+  --out /tmp/naverpay-missions.json \
+  --headless true
 ```
+
+If there is no saved session for that `--state-dir`, a visible browser opens once so you can complete the first login manually.
 
 3. Review discovered missions in the JSON file and remove lines that should not be automated.
 4. Run mission execution from the reviewed JSON:
@@ -30,6 +34,7 @@ node scripts/discover_missions.mjs \
 node scripts/run_missions.mjs \
   --state-dir ./.state/naverpay-profile \
   --missions /tmp/naverpay-missions.json \
+  --headless true \
   --default-wait-seconds 7 \
   --min-wait-seconds 3 \
   --max 10
@@ -50,7 +55,8 @@ node scripts/run_missions.mjs \
 ## Runtime Rules
 
 - Keep login manual. Do not script credential entry.
-- Keep browser headful by default so login, CAPTCHA, and mission completion can be verified.
+- Reuse the same `--state-dir` so the saved session can be reused across runs.
+- If `--headless true` is used without a saved session, open a visible browser once for manual login, then resume headless with the same `--state-dir`.
 - Default to reviewed execution. `run_missions.mjs` requires `--missions <path>` unless `--live-discovery true` is explicitly provided.
 - Use mission-specific dwell time from discovered JSON (`waitSeconds`) and enforce a minimum wait (`--min-wait-seconds`, default 3).
 - Follow mission popup flow: click mission link -> click popup `포인트 받기` first, then fallback to `받기/적립`.
@@ -61,9 +67,9 @@ node scripts/run_missions.mjs \
 
 ## Scripts
 
-- `scripts/discover_missions.mjs`: Open NaverPay main page, wait for login completion, extract clickable mission candidates, save JSON.
-- `scripts/run_missions.mjs`: Match discovered/current actions, click mission links, click popup claim (`포인트 받기` first), wait dwell time after moving, and continue sequentially.
-- `scripts/naverpay_helpers.mjs`: Shared utilities for login wait, action discovery, matching, and click execution.
+- `scripts/discover_missions.mjs`: Open NaverPay main page, bootstrap visible login only when the session is missing, extract clickable mission candidates, save JSON.
+- `scripts/run_missions.mjs`: Match discovered/current actions, bootstrap visible login only when needed, click mission links, click popup claim (`포인트 받기` first), wait dwell time after moving, and continue sequentially.
+- `scripts/naverpay_helpers.mjs`: Shared utilities for login bootstrap, action discovery, matching, and click execution.
 
 ### Completed-Store Options
 
@@ -73,7 +79,7 @@ node scripts/run_missions.mjs \
 ## Troubleshooting
 
 - If no actions are discovered, scroll/load page manually in the opened browser and re-run discovery.
-- If login timeout occurs, increase `--login-timeout-sec`.
+- If login timeout occurs, increase `--login-timeout-sec`. If you started with `--headless true`, finish login in the temporary visible browser window first.
 - If `run_missions` refuses to start, supply a reviewed snapshot with `--missions <path>` or explicitly opt into `--live-discovery true`.
 - If wrong button is clicked, reduce `--max`, edit `--missions` list, and re-run.
 - If mission card text changed, run discovery again to refresh labels/hrefs/card summaries.

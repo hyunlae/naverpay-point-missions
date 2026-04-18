@@ -94,7 +94,7 @@ function getBoolArg(args, key, defaultValue = false) {
     return false;
   }
 
-  return defaultValue;
+  throw new Error(`--${key} expects true/false (received: ${value})`);
 }
 
 function parseCsv(value) {
@@ -194,6 +194,34 @@ function assertSafeInstallDir(targetDir) {
   }
 }
 
+function assertContainedWithinBaseDir(baseDir, targetDir) {
+  const resolvedBaseDir = path.resolve(baseDir);
+  const resolvedTargetDir = path.resolve(targetDir);
+  const relative = path.relative(resolvedBaseDir, resolvedTargetDir);
+
+  if (!relative || relative === ".") {
+    throw new Error("Install target must stay inside the install base directory.");
+  }
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("Install target must stay inside the install base directory.");
+  }
+}
+
+function resolveInstallDir(baseDir, rawSkillName) {
+  const skillName = String(rawSkillName || "").trim();
+  if (!skillName) {
+    throw new Error("--skill-name must not be empty.");
+  }
+  if (skillName !== path.basename(skillName) || skillName === "." || skillName === "..") {
+    throw new Error("--skill-name must be a single directory name inside the install base directory.");
+  }
+
+  const installDir = path.resolve(baseDir, skillName);
+  assertContainedWithinBaseDir(baseDir, installDir);
+  assertSafeInstallDir(installDir);
+  return installDir;
+}
+
 async function resetInstallTarget(targetDir) {
   try {
     await lstat(targetDir);
@@ -243,8 +271,7 @@ export async function main(rawArgs = process.argv.slice(2)) {
 
   for (const target of targets) {
     const baseDir = resolveInstallBaseDir(target, customDest);
-    const installDir = path.resolve(baseDir, skillName);
-    assertSafeInstallDir(installDir);
+    const installDir = resolveInstallDir(baseDir, skillName);
 
     console.log(`[install] target=${target}`);
     console.log(`[install] mode=${installMode}`);

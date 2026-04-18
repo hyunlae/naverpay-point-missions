@@ -20,6 +20,8 @@ npx playwright install chromium
 
 - Register the skill with `node scripts/install_skill.mjs --target <ai> --mode link` so the cloned repo stays the runtime root.
 - Reuse one persistent profile via `--state-dir` so frequent re-login is avoided.
+- `--headless true` is supported for both `discover_missions.mjs` and `run_missions.mjs`.
+- Keep the same `--state-dir`; the first run may briefly open a visible browser to complete manual login, then continue headless.
 - Start with `--dry-run true` and `--max 2` to validate selectors before full run.
 - Keep mission batch size small and verify point history after each batch.
 - Treat reviewed JSON as the default execution input. Live discovery should be an explicit decision.
@@ -42,6 +44,7 @@ npx playwright install chromium
 ## Failure Cases To Expect
 
 - Login expiration or CAPTCHA.
+- No saved session in the chosen `--state-dir`, which triggers a one-time visible login bootstrap when `--headless true` is used.
 - Changed UI labels/DOM structure that breaks button matching.
 - Mission-specific conditions not satisfied (daily limit, eligibility, cooldown).
 

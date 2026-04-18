@@ -76,3 +76,42 @@ test("install_skill link mode creates a repo-backed link", async () => {
 
   assert.ok(linkedTarget.length > 0);
 });
+
+test("install_skill rejects invalid boolean flags instead of falling through", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "naverpay-bool-install-"));
+
+  await assert.rejects(
+    () =>
+      installSkillMain([
+        "--target",
+        "custom",
+        "--dest",
+        tempRoot,
+        "--mode",
+        "link",
+        "--dry-run",
+        "treu",
+      ]),
+    /expects true\/false/i,
+  );
+});
+
+test("install_skill rejects skill names that escape the install base directory", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "naverpay-escape-install-"));
+  const baseDir = path.join(tempRoot, "skills");
+
+  await assert.rejects(
+    () =>
+      installSkillMain([
+        "--target",
+        "custom",
+        "--dest",
+        baseDir,
+        "--mode",
+        "link",
+        "--skill-name",
+        "../escaped-skill",
+      ]),
+    /inside the install base directory/i,
+  );
+});

@@ -18,3 +18,5 @@ Recommended install model:
 - Register the cloned repo with `node scripts/install_skill.mjs --target <ai> --mode link`
 - Keep the repository as the runtime root
 - Prefer reviewed mission snapshots over unattended live discovery
+- Reuse the same `--state-dir` so the saved login session survives across runs
+- If `--headless true` starts without a saved session, expect a one-time visible login bootstrap before headless resumes
