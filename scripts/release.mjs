@@ -20,6 +20,12 @@ export function isSemver(version) {
   return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(String(version ?? "").trim());
 }
 
+function normalizeVersionInput(version) {
+  return String(version ?? "")
+    .trim()
+    .replace(/^v(?=\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$)/, "");
+}
+
 export function formatChangelogEntry({ version, date, notes }) {
   const normalizedNotes = Array.isArray(notes)
     ? notes.map((item) => String(item || "").trim()).filter(Boolean)
@@ -216,6 +222,40 @@ export function extractReleaseNotes(changelogContent, version) {
     .trim();
 }
 
+function extractReleaseDate(changelogContent, version) {
+  const body = normalizeChangelogBody(changelogContent);
+  const section = splitChangelogSections(body).find((item) =>
+    item.startsWith(`## ${version} - `),
+  );
+
+  if (!section) {
+    throw new Error(`Release notes for version ${version} were not found in CHANGELOG.md`);
+  }
+
+  const header = section.split("\n", 1)[0] || "";
+  const prefix = `## ${version} - `;
+  if (!header.startsWith(prefix)) {
+    throw new Error(`Release header for version ${version} is invalid in CHANGELOG.md`);
+  }
+
+  return header.slice(prefix.length).trim();
+}
+
+export function formatGitHubReleaseNotes(changelogContent, version) {
+  const normalizedVersion = normalizeVersionInput(version);
+  const releaseDate = extractReleaseDate(changelogContent, normalizedVersion);
+  const highlights = extractReleaseNotes(changelogContent, normalizedVersion);
+
+  return [
+    `# ${normalizedVersion}`,
+    "",
+    `Released: ${releaseDate}`,
+    "",
+    "## Highlights",
+    highlights || "- Release prepared",
+  ].join("\n");
+}
+
 async function execGit(repoDir, args) {
   const { stdout } = await execFileAsync("git", args, {
     cwd: repoDir,
@@ -262,7 +302,7 @@ function normalizeTagName(version, tagName) {
 
 export async function prepareRelease(options = {}) {
   const repoDir = path.resolve(options.repoDir || process.cwd());
-  const version = String(options.version || "").trim();
+  const version = normalizeVersionInput(options.version);
   const date = String(options.date || todayIsoDate()).trim();
   const notes = normalizeNotes(options.notes);
 
@@ -292,12 +332,13 @@ export async function prepareRelease(options = {}) {
 
 export async function publishGitHubRelease(options = {}) {
   const repoDir = path.resolve(options.repoDir || process.cwd());
-  const version = String(options.version || "").trim();
+  const version = normalizeVersionInput(options.version);
   const gitRunner = options.gitRunner || execGit;
   const ghRunner = options.ghRunner || execGh;
   const authLoader = options.authLoader || loadGitHubAuthFile;
   const remoteName = String(options.remoteName || "origin").trim();
   const authFile = path.resolve(repoDir, options.authFile || DEFAULT_AUTH_FILE);
+  const runtimeEnv = options.env || process.env;
 
   if (!isSemver(version)) {
     throw new Error(`Invalid semver version: ${version}`);
@@ -311,16 +352,27 @@ export async function publishGitHubRelease(options = {}) {
   }
 
   const headSha = String(await gitRunner(repoDir, ["rev-parse", "HEAD"])).trim();
+  const isGitHubTagContext =
+    String(runtimeEnv.GITHUB_ACTIONS || "").toLowerCase() === "true" &&
+    String(runtimeEnv.GITHUB_REF_TYPE || "").toLowerCase() === "tag";
   let upstreamSha = "";
   try {
     upstreamSha = String(await gitRunner(repoDir, ["rev-parse", "@{u}"])).trim();
   } catch (error) {
+    if (!isGitHubTagContext) {
+      throw new Error(
+        "Current branch has no upstream. Push the release commit before publishing GitHub release.",
+      );
+    }
+  }
+
+  if (!upstreamSha && !isGitHubTagContext) {
     throw new Error(
       "Current branch has no upstream. Push the release commit before publishing GitHub release.",
     );
   }
 
-  if (headSha !== upstreamSha) {
+  if (upstreamSha && headSha !== upstreamSha && !isGitHubTagContext) {
     throw new Error(
       "Current HEAD is not pushed to the upstream branch. Push before publishing GitHub release.",
     );
@@ -333,14 +385,21 @@ export async function publishGitHubRelease(options = {}) {
   const authConfig =
     options.authConfig || (await loadOptionalProjectAuth(authFile, authLoader));
   const repo = normalizeRepoSlug(options.repo || authConfig?.path || remote.path);
-  const env = buildGitHubEnv(options.env || process.env, authConfig);
+  const env = buildGitHubEnv(runtimeEnv, authConfig);
   const tagName = normalizeTagName(version, options.tagName);
   const changelogPath = path.join(repoDir, "CHANGELOG.md");
   const changelogContent =
     options.changelogContent || (await readFile(changelogPath, "utf8"));
   const notesBody = normalizeNotes(options.notes).length
-    ? formatReleaseNotesBody(options.notes)
-    : extractReleaseNotes(changelogContent, version);
+    ? [
+        `# ${version}`,
+        "",
+        `Released: ${String(options.date || todayIsoDate()).trim()}`,
+        "",
+        "## Highlights",
+        formatReleaseNotesBody(options.notes),
+      ].join("\n")
+    : formatGitHubReleaseNotes(changelogContent, version);
 
   let releaseExists = false;
   try {
@@ -425,7 +484,7 @@ async function main(rawArgs = process.argv.slice(2)) {
     return;
   }
 
-  const version = getStringArg(args, "version", "");
+  const version = normalizeVersionInput(getStringArg(args, "version", ""));
   const notes = getStringArg(args, "notes", "")
     .split(";")
     .map((item) => item.trim())

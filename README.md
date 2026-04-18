@@ -106,6 +106,17 @@ npm run release -- --version 1.0.0 --notes "Initial release"
 - `package-lock.json`의 `version`
 - `CHANGELOG.md`
 
+GitHub Release notes는 `CHANGELOG.md`의 해당 버전 섹션을 바탕으로 다음 형식으로 정리됩니다.
+
+```md
+# 1.0.0
+
+Released: 2026-04-18
+
+## Highlights
+- Initial release
+```
+
 2단계, 커밋과 push 이후 GitHub Release publish:
 
 ```bash
@@ -119,6 +130,23 @@ node scripts/release.mjs --version 1.0.0 --publish-github true --skip-prepare tr
 - 워킹트리가 깨끗할 것
 
 GitHub Release publish 시에는 저장소의 project-local GitHub 인증 파일이 있으면 그 설정을 우선 사용하고, 없으면 현재 `gh` CLI 인증을 사용합니다.
+
+### GitHub Actions 자동 publish
+
+이 저장소에는 `.github/workflows/release.yml`이 포함되어 있습니다.
+
+- 트리거: `v*` 형식 tag push
+- 권한: `contents: write`
+- 동작: checkout 후 `node scripts/release.mjs --version "${{ github.ref_name }}" --publish-github true --skip-prepare true` 실행
+
+즉, release 파일을 준비해서 커밋/푸시한 뒤 아래처럼 tag를 올리면 GitHub Release가 자동으로 발행됩니다.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+기존처럼 수동 publish도 가능하지만, 앞으로 기본 운영 경로는 `release commit -> push -> tag push -> GitHub Actions publish`입니다.
 
 ## 멀티 AI 스킬 등록
 

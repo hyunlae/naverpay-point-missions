@@ -6,6 +6,7 @@ import path from "node:path";
 
 import {
   extractReleaseNotes,
+  formatGitHubReleaseNotes,
   formatChangelogEntry,
   isSemver,
   publishGitHubRelease,
@@ -87,6 +88,31 @@ test("prepareRelease writes VERSION, package.json, and CHANGELOG for the first r
   assert.equal(result.version, "1.0.0");
 });
 
+test("prepareRelease accepts a tag-style version input", async () => {
+  const repoDir = await mkdtemp(path.join(os.tmpdir(), "naverpay-release-"));
+  await writeFile(
+    path.join(repoDir, "package.json"),
+    JSON.stringify(
+      {
+        name: "naverpay-point-missions",
+        scripts: { test: "node --test" },
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+
+  const result = await prepareRelease({
+    repoDir,
+    version: "v1.0.0",
+    date: "2026-04-18",
+    notes: ["Initial release"],
+  });
+
+  assert.equal(result.version, "1.0.0");
+});
+
 test("prepareRelease replaces an existing changelog entry for the same version", async () => {
   const repoDir = await mkdtemp(path.join(os.tmpdir(), "naverpay-release-"));
   await writeFile(
@@ -128,6 +154,19 @@ test("extractReleaseNotes returns the notes for one changelog section", () => {
   );
 
   assert.equal(notes, "- Initial release\n- Login bootstrap");
+});
+
+test("formatGitHubReleaseNotes renders a summary-friendly release body", () => {
+  const body = formatGitHubReleaseNotes(
+    "# Changelog\n\n## 1.0.0 - 2026-04-18\n- Initial release\n- Login bootstrap\n",
+    "1.0.0",
+  );
+
+  assert.match(body, /# 1\.0\.0/);
+  assert.match(body, /Released: 2026-04-18/);
+  assert.match(body, /## Highlights/);
+  assert.match(body, /- Initial release/);
+  assert.match(body, /- Login bootstrap/);
 });
 
 test("publishGitHubRelease creates a GitHub release using repo-local auth when available", async () => {
@@ -197,10 +236,71 @@ test("publishGitHubRelease creates a GitHub release using repo-local auth when a
     "--target",
     "abc123",
     "--notes",
-    "- Initial release",
+    "# 1.0.0\n\nReleased: 2026-04-18\n\n## Highlights\n- Initial release",
     "--latest",
   ]);
   assert.equal(ghCalls[1].env.GH_TOKEN, "token-123");
   assert.equal(ghCalls[1].env.GH_HOST, "github.com");
   assert.equal(ghCalls[1].input, undefined);
+});
+
+test("publishGitHubRelease allows detached tag contexts in GitHub Actions", async () => {
+  const repoDir = await mkdtemp(path.join(os.tmpdir(), "naverpay-release-"));
+  await writeFile(
+    path.join(repoDir, "CHANGELOG.md"),
+    "# Changelog\n\n## 1.0.0 - 2026-04-18\n- Initial release\n",
+    "utf8",
+  );
+
+  const ghCalls = [];
+  const result = await publishGitHubRelease({
+    repoDir,
+    version: "v1.0.0",
+    env: {
+      GITHUB_ACTIONS: "true",
+      GITHUB_REF_TYPE: "tag",
+    },
+    gitRunner: async (cwd, args) => {
+      if (args.join(" ") === "status --porcelain") {
+        return "";
+      }
+      if (args.join(" ") === "remote get-url origin") {
+        return "https://github.com/hyunlae/naverpay-point-missions.git\n";
+      }
+      if (args.join(" ") === "rev-parse HEAD") {
+        return "abc123\n";
+      }
+      if (args.join(" ") === "rev-parse @{u}") {
+        const error = new Error("no upstream");
+        error.code = 128;
+        throw error;
+      }
+      throw new Error(`Unexpected git args: ${args.join(" ")}`);
+    },
+    ghRunner: async ({ args }) => {
+      ghCalls.push(args);
+      if (args[0] === "release" && args[1] === "view") {
+        const error = new Error("not found");
+        error.code = 1;
+        throw error;
+      }
+      return "";
+    },
+  });
+
+  assert.equal(result.version, "1.0.0");
+  assert.deepEqual(ghCalls[1], [
+    "release",
+    "create",
+    "v1.0.0",
+    "--repo",
+    "hyunlae/naverpay-point-missions",
+    "--title",
+    "1.0.0",
+    "--target",
+    "abc123",
+    "--notes",
+    "# 1.0.0\n\nReleased: 2026-04-18\n\n## Highlights\n- Initial release",
+    "--latest",
+  ]);
 });
