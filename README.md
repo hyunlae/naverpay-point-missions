@@ -1,22 +1,22 @@
 # naverpay-point-missions
 
-> **설치 요약**: `git clone https://github.com/hyunlae/naverpay-point-missions.git && cd naverpay-point-missions && npm install && npx playwright install chromium && node scripts/install_skill.mjs --target codex --mode link`
+> **Quick install**: `git clone https://github.com/hyunlae/naverpay-point-missions.git && cd naverpay-point-missions && npm install && npx playwright install chromium && node scripts/install_skill.mjs --target codex --mode link`
 >
 > **One-line pitch**: Reviewed Playwright automation for NaverPay point missions with first-login bootstrap, headless reruns, and multi-agent packaging for Codex, Claude Code, and Gemini CLI.
 
-네이버페이 포인트 페이지(`https://point.pay.naver.com/pc/main`)의 클릭/방문 미션을 reviewed snapshot 기반으로 실행하는 Playwright 스킬입니다. 무작정 즉시 클릭하지 않고, 먼저 수집하고 검토한 뒤 실행하는 흐름을 기본값으로 둡니다.
+This skill runs NaverPay point missions from `https://point.pay.naver.com/pc/main` through a reviewed-snapshot workflow. Instead of clicking newly discovered campaigns immediately, it collects mission candidates first, lets you review the JSON, and then executes only the approved set.
 
-이 스킬이 맞는 경우:
+Best for:
 
-- 네이버페이 미션을 반복적으로 처리하지만 신규 캠페인은 먼저 검토하고 싶을 때
-- 최초 로그인만 화면에서 끝내고, 이후에는 같은 `--state-dir`로 headless 재실행하고 싶을 때
-- Codex, Claude Code, Gemini CLI 같은 여러 에이전트에서 같은 저장소를 공용 skill runtime으로 쓰고 싶을 때
+- users who want repeatable NaverPay mission runs but still want to review new campaigns first
+- teams that want first login to stay visible and manual, then reuse the same `--state-dir` in headless mode
+- setups that share one repo-backed skill runtime across Codex, Claude Code, and Gemini CLI
 
-핵심 차별점:
+Why it stands out:
 
 - `reviewed-by-default`: `discover -> JSON review -> run --missions`
-- `manual-first login`: 저장된 세션이 없으면 1회 visible login 후 headless 재개
-- `repo-backed install`: AI 런타임에는 얇은 링크만 두고, 실제 코드와 의존성은 이 저장소에서 관리
+- `manual-first login`: if no session is saved, it opens one visible login window and then resumes headless
+- `repo-backed install`: agent runtimes keep thin links while code and dependencies stay in this repository
 
 이 프로젝트는 이제 다음 원칙을 기본으로 합니다.
 
