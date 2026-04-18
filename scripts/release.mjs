@@ -458,23 +458,29 @@ export async function publishGitHubRelease(options = {}) {
   };
 }
 
-function printUsage() {
-  console.log(`Usage:
-  node scripts/release.mjs --version <semver> [options]
+export const RELEASE_USAGE_TEXT = `사용법:
+  node scripts/release.mjs --version <semver> [옵션]
 
-Modes:
-  default                                 Prepare VERSION, package metadata, and CHANGELOG
+모드:
+  기본값                                  VERSION, package 메타데이터, CHANGELOG 준비
   --publish-github true --skip-prepare true
-                                          Publish an existing release commit to GitHub Release
+                                          이미 커밋/푸시된 릴리스를 GitHub Release로 발행
 
-Options:
-  --version <semver>                      Release version to prepare or publish
-  --date <YYYY-MM-DD>                     Release date (default: today)
-  --notes <text>                          Release note line (semicolon-separated)
-  --publish-github <bool>                 Publish to GitHub Release (default: false)
-  --skip-prepare <bool>                   Skip local file updates and publish only
-  --help                                  Show this help
-`);
+옵션:
+  --version <semver>                      준비하거나 발행할 릴리스 버전
+  --date <YYYY-MM-DD>                     릴리스 날짜 (기본값: 오늘)
+  --notes <text>                          릴리스 노트 한 줄(세미콜론으로 여러 줄 구분)
+  --publish-github <bool>                 GitHub Release 발행 여부 (기본값: false)
+  --skip-prepare <bool>                   로컬 파일 갱신을 건너뛰고 발행만 수행
+  --help                                  이 도움말 출력
+
+예시:
+  node scripts/release.mjs --version 1.0.0 --notes "첫 릴리스"
+  node scripts/release.mjs --version 1.0.0 --publish-github true --skip-prepare true
+`;
+
+function printUsage() {
+  console.log(RELEASE_USAGE_TEXT);
 }
 
 async function main(rawArgs = process.argv.slice(2)) {

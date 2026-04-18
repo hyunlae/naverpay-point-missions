@@ -42,34 +42,40 @@ import {
   waitForPageByPredicate,
 } from "./naverpay_helpers.mjs";
 
-function printUsage() {
-  console.log(`Usage:
-  node scripts/run_missions.mjs [options]
+export const RUN_USAGE_TEXT = `사용법:
+  node scripts/run_missions.mjs [옵션]
 
-Options:
-  --missions <path>            Reviewed JSON from discover_missions.mjs
-  --live-discovery <bool>      Allow live mission discovery without reviewed JSON (default: false)
-  --state-dir <path>           Playwright persistent profile path (default: ./.state/naverpay-profile)
-  --completed-store <path>     Completed campaign store JSON path (default: <state-dir>/completed-campaigns.json)
-  --ignore-completed <bool>    Ignore completed store and retry all targets (default: false)
-  --scan-main-point-links <b>  Scan /pc/main '포인트 받기' links first (default: true)
-  --only-nclick-campaigns <b>  Only run campaigns labeled as "N클릭 X원" (default: true)
-  --keywords <csv>             Mission action keywords filter
-  --claim-keywords <csv>       Claim keywords (default: 포인트 받기,포인트 쉽게 받기)
-  --popup-primary-label <txt>  Popup primary claim label (default: 포인트 받기)
-  --default-wait-seconds <n>   Fallback dwell time when mission wait is unknown (default: 7)
-  --min-wait-seconds <n>       Minimum dwell time clamp (default: 3)
-  --max-wait-seconds <n>       Maximum dwell time clamp (default: 120)
-  --wait-seconds <n>           Legacy alias of --default-wait-seconds
-  --max <num>                  Maximum missions to execute (default: 200)
-  --headless <true|false>      Run headless browser (default: false, auto-opens visible login if session missing)
-  --dry-run <true|false>       Print selected targets only (default: false)
-  --login-timeout-sec <num>    Login wait timeout in seconds (default: 240)
-`);
+옵션:
+  --missions <path>            discover_missions 결과를 검토한 JSON 경로
+  --live-discovery <bool>      검토된 JSON 없이 실시간 수집 후 실행 허용 (기본값: false)
+  --state-dir <path>           Playwright 프로필 경로 (기본값: ./.state/naverpay-profile)
+  --completed-store <path>     완료 이력 JSON 경로 (기본값: <state-dir>/completed-campaigns.json)
+  --ignore-completed <bool>    완료 이력을 무시하고 재시도 (기본값: false)
+  --scan-main-point-links <b>  /pc/main의 '포인트 받기' 링크를 먼저 스캔 (기본값: true)
+  --only-nclick-campaigns <b>  'N클릭 X원' 캠페인만 실행 (기본값: true)
+  --keywords <csv>             미션 액션 키워드 필터
+  --claim-keywords <csv>       적립 버튼 탐색 키워드 (기본값: 포인트 받기,포인트 쉽게 받기)
+  --popup-primary-label <txt>  팝업 1순위 적립 버튼 라벨 (기본값: 포인트 받기)
+  --default-wait-seconds <n>   대기 시간 미검출 시 기본값 (기본값: 7)
+  --min-wait-seconds <n>       최소 대기 시간 (기본값: 3)
+  --max-wait-seconds <n>       최대 대기 시간 (기본값: 120)
+  --wait-seconds <n>           --default-wait-seconds의 예전 별칭
+  --max <num>                  최대 실행 개수 (기본값: 200)
+  --headless <true|false>      헤드리스 실행 여부 (기본값: false, 세션이 없으면 화면 로그인 후 재개)
+  --dry-run <true|false>       실제 클릭 없이 타깃 매칭만 확인 (기본값: false)
+  --login-timeout-sec <num>    로그인 대기 제한 시간(초) (기본값: 240)
+
+예시:
+  node scripts/run_missions.mjs --missions /tmp/naverpay-missions.json --state-dir ./.state/naverpay-profile --headless true --max 5 --dry-run true
+  node scripts/run_missions.mjs --missions /tmp/naverpay-missions.json --state-dir ./.state/naverpay-profile --headless true --max 200
+`;
+
+function printUsage() {
+  console.log(RUN_USAGE_TEXT);
 }
 
 export const REVIEWED_EXECUTION_REQUIRED_MESSAGE =
-  "Reviewed execution is now the default. Run discover_missions first, inspect the JSON, then pass --missions <path>. If you intentionally want the old behavior, re-run with --live-discovery true.";
+  "이제 검토 기반 실행이 기본값입니다. 먼저 discover_missions로 미션을 수집하고 검토된 JSON을 확인한 뒤 --missions <path>를 넘겨주세요. 예전처럼 즉시 수집/실행이 필요하면 --live-discovery true로 다시 실행하세요.";
 
 async function loadPlannedMissions(pathOrEmpty) {
   if (!pathOrEmpty) {

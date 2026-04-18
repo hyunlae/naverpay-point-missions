@@ -1,15 +1,17 @@
-# Execution Checklist
+# 실행 체크리스트
 
-1. Open the mission page with persisted state and complete login manually.
-   - With `--headless true`, the first run may briefly open a visible browser for this login step, then continue headless with the same `--state-dir`.
-2. Run discovery and inspect the generated mission list:
-   - Remove items that are not safe to auto-click.
-   - Keep only obvious mission-action rows.
-   - Verify each mission `waitSeconds` is reasonable.
-3. Reuse the same `--state-dir` for the reviewed run so the saved session is preserved.
-4. Run mission script from the reviewed JSON in a small batch (`--missions ... --max 2`).
-5. Confirm point accrual on NaverPay page.
-6. Increase batch size only after successful verification.
-7. Re-run discovery whenever mission labels/cards change.
-8. Keep completed-campaign store and verify completed missions are skipped next run.
-9. Use `--live-discovery true` only when you intentionally want unattended live execution.
+1. 저장된 상태를 사용하는 프로필로 미션 페이지를 열고 로그인 상태를 확인합니다.
+   - `--headless true`인데 저장된 세션이 없으면, 첫 실행에서 화면 브라우저가 잠깐 열려 로그인 단계를 마친 뒤 같은 `--state-dir`로 다시 headless 실행이 이어질 수 있습니다.
+2. discovery를 실행하고 생성된 미션 목록을 검토합니다.
+   - 자동 클릭하면 안 되는 항목을 제거합니다.
+   - 미션 액션으로 보이는 명확한 항목만 남깁니다.
+   - 각 미션의 `waitSeconds` 값이 지나치게 크거나 작지 않은지 확인합니다.
+3. 검토 후 실행할 때도 같은 `--state-dir`를 재사용해 저장된 세션을 유지합니다.
+4. 검토된 JSON으로 작은 배치부터 실행합니다.
+   - 처음에는 `--missions ... --max 2 --dry-run true`로 타깃 매칭만 확인합니다.
+   - 그 다음 `--max 2` 정도로 실제 실행을 검증합니다.
+5. 네이버페이 페이지에서 실제 적립 여부를 확인합니다.
+6. 정상 동작이 확인된 뒤에만 배치 크기를 늘립니다.
+7. 미션 라벨이나 카드 구조가 바뀌면 discovery를 다시 실행합니다.
+8. 완료 이력 저장소를 유지하고, 다음 실행에서 완료된 미션이 정상적으로 스킵되는지 확인합니다.
+9. `--live-discovery true`는 정말로 실시간 수집 즉시 실행이 필요할 때만 사용합니다.

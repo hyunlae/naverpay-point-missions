@@ -18,18 +18,23 @@ import {
   parseCsvArg,
 } from "./naverpay_helpers.mjs";
 
-function printUsage() {
-  console.log(`Usage:
-  node scripts/discover_missions.mjs [options]
+export const DISCOVER_USAGE_TEXT = `사용법:
+  node scripts/discover_missions.mjs [옵션]
 
-Options:
-  --out <path>                 Output JSON path (default: ./missions.json)
-  --state-dir <path>           Playwright persistent profile path (default: ./.state/naverpay-profile)
-  --keywords <csv>             Action keywords filter
-  --default-wait-seconds <n>   Fallback waitSeconds in output when no time text exists (default: 7)
-  --headless <true|false>      Run headless browser (default: false, auto-opens visible login if session missing)
-  --login-timeout-sec <num>    Login wait timeout in seconds (default: 240)
-`);
+옵션:
+  --out <path>                 결과 JSON 저장 경로 (기본값: ./missions.json)
+  --state-dir <path>           Playwright 프로필 경로 (기본값: ./.state/naverpay-profile)
+  --keywords <csv>             수집 대상 액션 키워드 필터
+  --default-wait-seconds <n>   대기 시간 미검출 시 결과에 넣을 기본값 (기본값: 7)
+  --headless <true|false>      헤드리스 실행 여부 (기본값: false, 세션이 없으면 화면 로그인 후 재개)
+  --login-timeout-sec <num>    로그인 대기 제한 시간(초) (기본값: 240)
+
+예시:
+  node scripts/discover_missions.mjs --state-dir ./.state/naverpay-profile --out /tmp/naverpay-missions.json --headless true
+`;
+
+function printUsage() {
+  console.log(DISCOVER_USAGE_TEXT);
 }
 
 export async function main(rawArgs = process.argv.slice(2), deps = {}) {

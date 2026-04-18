@@ -21,25 +21,28 @@ export const INSTALL_ITEMS = [
   "agents",
 ];
 
-function printUsage() {
-  console.log(`Usage:
-  node scripts/install_skill.mjs [options]
+export const INSTALL_USAGE_TEXT = `사용법:
+  node scripts/install_skill.mjs [옵션]
 
-Options:
-  --target <name|csv>         codex|openai|claude|gemini|antigravity|custom|all (default: all)
-  --mode <link|copy>          Install mode (default: link)
-  --dest <path>               Override destination base directory (single target only)
-  --skill-name <name>         Override installed folder name (default: ${SKILL_NAME})
-  --dry-run <true|false>      Print destination only, do not copy files (default: false)
-  --help                      Show this help
+옵션:
+  --target <name|csv>         codex|openai|claude|gemini|antigravity|custom|all (기본값: all)
+  --mode <link|copy>          설치 방식 (기본값: link)
+  --dest <path>               설치 기본 경로 덮어쓰기 (단일 target에서만 사용)
+  --skill-name <name>         설치 폴더 이름 덮어쓰기 (기본값: ${SKILL_NAME})
+  --dry-run <true|false>      설치하지 않고 대상 경로만 출력 (기본값: false)
+  --help                      이 도움말 출력
 
-Examples:
-  node scripts/install_skill.mjs --target all
+권장:
+  Codex에서는 repo-backed link 설치를 기본 경로로 사용하세요.
+
+예시:
   node scripts/install_skill.mjs --target codex --mode link
-  node scripts/install_skill.mjs --target claude
-  node scripts/install_skill.mjs --target custom --dest ~/.my-agent/skills
-  node scripts/install_skill.mjs --target gemini --dest ~/.config/gemini/skills
-`);
+  node scripts/install_skill.mjs --target all --mode link --dry-run true
+  node scripts/install_skill.mjs --target custom --dest ~/.my-agent/skills --mode copy
+`;
+
+function printUsage() {
+  console.log(INSTALL_USAGE_TEXT);
 }
 
 function parseCliArgs(argv) {
