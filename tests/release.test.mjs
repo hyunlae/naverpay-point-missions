@@ -163,7 +163,7 @@ test("publishGitHubRelease creates a GitHub release using repo-local auth when a
       ghCalls.push({ args, env, input });
       if (args[0] === "release" && args[1] === "view") {
         const error = new Error("not found");
-        error.exitCode = 1;
+        error.code = 1;
         throw error;
       }
       return "";

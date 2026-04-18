@@ -351,7 +351,7 @@ export async function publishGitHubRelease(options = {}) {
     });
     releaseExists = true;
   } catch (error) {
-    if (error?.exitCode !== 1) {
+    if (error?.exitCode !== 1 && error?.code !== 1) {
       throw error;
     }
   }
