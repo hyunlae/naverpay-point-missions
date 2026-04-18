@@ -1,10 +1,29 @@
 {
   "name": "naverpay-point-missions",
-  "description": "Playwright-based NaverPay point mission automation skill with reviewed snapshots and manual-login-safe execution.",
+  "description": "Reviewed Playwright automation for NaverPay point missions with first-login bootstrap, headless reruns, and multi-agent skill packaging.",
   "version": "1.0.0",
+  "homepage": "https://github.com/hyunlae/naverpay-point-missions#readme",
+  "bugs": {
+    "url": "https://github.com/hyunlae/naverpay-point-missions/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/hyunlae/naverpay-point-missions.git"
+  },
+  "keywords": [
+    "agent-skill",
+    "skills.sh",
+    "naverpay",
+    "playwright",
+    "automation",
+    "codex",
+    "claude-code",
+    "gemini-cli",
+    "reviewed-snapshot",
+    "headless-login-bootstrap"
+  ],
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
     "test": "node --test",

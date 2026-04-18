@@ -1,8 +1,22 @@
 # naverpay-point-missions
 
 > **설치 요약**: `git clone https://github.com/hyunlae/naverpay-point-missions.git && cd naverpay-point-missions && npm install && npx playwright install chromium && node scripts/install_skill.mjs --target codex --mode link`
+>
+> **One-line pitch**: Reviewed Playwright automation for NaverPay point missions with first-login bootstrap, headless reruns, and multi-agent packaging for Codex, Claude Code, and Gemini CLI.
 
-네이버페이 포인트 페이지(`https://point.pay.naver.com/pc/main`)의 클릭/방문 미션을 Playwright로 반복 실행하는 자동화 스킬입니다.
+네이버페이 포인트 페이지(`https://point.pay.naver.com/pc/main`)의 클릭/방문 미션을 reviewed snapshot 기반으로 실행하는 Playwright 스킬입니다. 무작정 즉시 클릭하지 않고, 먼저 수집하고 검토한 뒤 실행하는 흐름을 기본값으로 둡니다.
+
+이 스킬이 맞는 경우:
+
+- 네이버페이 미션을 반복적으로 처리하지만 신규 캠페인은 먼저 검토하고 싶을 때
+- 최초 로그인만 화면에서 끝내고, 이후에는 같은 `--state-dir`로 headless 재실행하고 싶을 때
+- Codex, Claude Code, Gemini CLI 같은 여러 에이전트에서 같은 저장소를 공용 skill runtime으로 쓰고 싶을 때
+
+핵심 차별점:
+
+- `reviewed-by-default`: `discover -> JSON review -> run --missions`
+- `manual-first login`: 저장된 세션이 없으면 1회 visible login 후 headless 재개
+- `repo-backed install`: AI 런타임에는 얇은 링크만 두고, 실제 코드와 의존성은 이 저장소에서 관리
 
 이 프로젝트는 이제 다음 원칙을 기본으로 합니다.
 
@@ -104,6 +118,17 @@ Codex 권장 설치:
 ```bash
 node scripts/install_skill.mjs --target codex --mode link
 ```
+
+## Distribution Priority
+
+현재 기준으로는 아래 순서로 노출을 챙기는 것이 가장 효율적입니다.
+
+1. `skills.sh`: 공개 skill 인덱스이자 install telemetry의 source of truth
+2. `SkillsGate`: `skills.sh` 공개 skill을 브라우징/설치하는 UI 레이어
+3. `AgentSkills`: 별도 탐색 트래픽과 카테고리 노출을 기대할 수 있는 독립 디렉터리
+4. `ClawHub` / Claude 전용 marketplace: OpenClaw 또는 Claude 전용 패키징이 추가될 때 검토
+
+즉, 지금 이 저장소는 `skills.sh`와 `AgentSkills`에 맞춘 메타데이터를 우선 최적화하고, `SkillsGate`는 그 결과를 자연스럽게 따라오게 만드는 전략이 맞습니다.
 
 ## Release
 

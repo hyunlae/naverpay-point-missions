@@ -1,6 +1,6 @@
 ---
 name: naverpay-point-missions
-description: Execute NaverPay point-earning missions from https://point.pay.naver.com/pc/main with Playwright-based semi-automation. Use when users ask to discover mission buttons, click mission links, apply mission-specific dwell time (typically 3 seconds or more), and return to claim points while keeping login and verification manual.
+description: Reviewed Playwright automation for NaverPay point-earning missions. Use when users want to discover click-event missions, review a JSON snapshot, keep the first login manual, and then rerun missions headless with the saved session.
 ---
 
 # NaverPay Point Missions
@@ -12,6 +12,13 @@ Use provided scripts to discover mission buttons first, then execute actions wit
 When `--headless true` is used without a saved session, the same `--state-dir` briefly opens a visible browser for the first manual login and then resumes headless.
 Mission collection is fixed to click-event mission list page:
 `https://point.pay.naver.com/pc/mission-detail?dataType=placement&pageKey=benefit_group_pp&rankType=RANDOM_DAILY&sortCompletedAdToLast=true&mssCode=pp`.
+
+Why this skill is different:
+
+- reviewed-by-default flow instead of immediate blind execution
+- first login stays manual, then the saved session can be reused headlessly
+- completed-store tracking reduces repeat clicks across runs
+- works as a repo-backed skill for Codex, Claude Code, Gemini CLI, and related runtimes
 
 ## Workflow
 
