@@ -365,8 +365,8 @@ export async function publishGitHubRelease(options = {}) {
         repo,
         "--title",
         version,
-        "--notes-file",
-        "-",
+        "--notes",
+        notesBody,
         "--latest",
       ]
     : [
@@ -379,8 +379,8 @@ export async function publishGitHubRelease(options = {}) {
         version,
         "--target",
         headSha,
-        "--notes-file",
-        "-",
+        "--notes",
+        notesBody,
         "--latest",
       ];
 
@@ -388,7 +388,6 @@ export async function publishGitHubRelease(options = {}) {
     cwd: repoDir,
     args: releaseArgs,
     env,
-    input: notesBody,
   });
 
   return {

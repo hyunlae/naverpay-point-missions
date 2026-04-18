@@ -196,11 +196,11 @@ test("publishGitHubRelease creates a GitHub release using repo-local auth when a
     "1.0.0",
     "--target",
     "abc123",
-    "--notes-file",
-    "-",
+    "--notes",
+    "- Initial release",
     "--latest",
   ]);
   assert.equal(ghCalls[1].env.GH_TOKEN, "token-123");
   assert.equal(ghCalls[1].env.GH_HOST, "github.com");
-  assert.equal(ghCalls[1].input, "- Initial release");
+  assert.equal(ghCalls[1].input, undefined);
 });
