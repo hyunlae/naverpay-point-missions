@@ -85,16 +85,16 @@ test("buildCredentialHelperCommand wires the repo-local auth file and helper scr
 test("resolveGitHubTokenInput accepts an env var name", () => {
   assert.equal(
     resolveGitHubTokenInput("NAVERPAY_PROJECT_GITHUB_TOKEN", {
-      NAVERPAY_PROJECT_GITHUB_TOKEN: "ghp_from_env_name",
+      NAVERPAY_PROJECT_GITHUB_TOKEN: "token_from_env_name",
     }),
-    "ghp_from_env_name",
+    "token_from_env_name",
   );
 });
 
 test("resolveGitHubTokenInput accepts an already-expanded token value", () => {
   assert.equal(
-    resolveGitHubTokenInput("ghp_from_shell_expansion", {}),
-    "ghp_from_shell_expansion",
+    resolveGitHubTokenInput("token_from_shell_expansion", {}),
+    "token_from_shell_expansion",
   );
 });
 
