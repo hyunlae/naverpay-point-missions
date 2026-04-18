@@ -1,16 +1,25 @@
 #!/usr/bin/env node
 
-import { cp, mkdir, stat } from "node:fs/promises";
+import { cp, lstat, mkdir, rm, stat, symlink } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const SKILL_NAME = "naverpay-point-missions";
+export const SKILL_NAME = "naverpay-point-missions";
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(SCRIPT_DIR, "..");
 const DEFAULT_TARGETS = ["codex", "claude", "gemini", "antigravity"];
 const CUSTOM_TARGETS = ["custom", "other"];
-const INSTALL_ITEMS = ["SKILL.md", "README.md", "scripts", "references", "agents"];
+export const DEFAULT_INSTALL_MODE = "link";
+export const INSTALL_ITEMS = [
+  "SKILL.md",
+  "README.md",
+  "package.json",
+  "package-lock.json",
+  "scripts",
+  "references",
+  "agents",
+];
 
 function printUsage() {
   console.log(`Usage:
@@ -18,6 +27,7 @@ function printUsage() {
 
 Options:
   --target <name|csv>         codex|openai|claude|gemini|antigravity|custom|all (default: all)
+  --mode <link|copy>          Install mode (default: link)
   --dest <path>               Override destination base directory (single target only)
   --skill-name <name>         Override installed folder name (default: ${SKILL_NAME})
   --dry-run <true|false>      Print destination only, do not copy files (default: false)
@@ -25,6 +35,7 @@ Options:
 
 Examples:
   node scripts/install_skill.mjs --target all
+  node scripts/install_skill.mjs --target codex --mode link
   node scripts/install_skill.mjs --target claude
   node scripts/install_skill.mjs --target custom --dest ~/.my-agent/skills
   node scripts/install_skill.mjs --target gemini --dest ~/.config/gemini/skills
@@ -93,26 +104,26 @@ function parseCsv(value) {
     .filter(Boolean);
 }
 
-function requireHomeDir() {
-  const home = process.env.HOME || process.env.USERPROFILE;
+export function requireHomeDir(env = process.env) {
+  const home = env.HOME || env.USERPROFILE;
   if (!home) {
     throw new Error("HOME (or USERPROFILE) is required to resolve default install paths.");
   }
   return home;
 }
 
-function resolveCodexBaseDir() {
-  if (process.env.CODEX_HOME) {
-    return path.resolve(process.env.CODEX_HOME, "skills");
+export function resolveCodexBaseDir(env = process.env) {
+  if (env.CODEX_HOME) {
+    return path.resolve(env.CODEX_HOME, "skills");
   }
-  return path.resolve(requireHomeDir(), ".agents", "skills");
+  return path.resolve(requireHomeDir(env), ".codex", "skills");
 }
 
-function resolveDefaultBaseDir(target) {
-  const home = requireHomeDir();
+function resolveDefaultBaseDir(target, env = process.env) {
+  const home = requireHomeDir(env);
   switch (target) {
     case "codex":
-      return resolveCodexBaseDir();
+      return resolveCodexBaseDir(env);
     case "claude":
       return path.resolve(home, ".claude", "skills");
     case "gemini":
@@ -124,7 +135,7 @@ function resolveDefaultBaseDir(target) {
   }
 }
 
-function normalizeTargets(targetArgRaw) {
+export function normalizeTargets(targetArgRaw) {
   const raw = String(targetArgRaw || "all").toLowerCase().trim();
   const list = raw === "all" ? [...DEFAULT_TARGETS] : parseCsv(raw);
   if (list.length === 0) {
@@ -168,24 +179,60 @@ async function copyInstallItems(targetDir) {
   }
 }
 
-function resolveInstallBaseDir(target, customDest) {
+export function resolveInstallMode(rawMode = DEFAULT_INSTALL_MODE) {
+  const mode = String(rawMode || DEFAULT_INSTALL_MODE).toLowerCase().trim();
+  if (!["link", "copy"].includes(mode)) {
+    throw new Error(`Unknown install mode "${rawMode}". Use link|copy.`);
+  }
+  return mode;
+}
+
+function assertSafeInstallDir(targetDir) {
+  const resolved = path.resolve(targetDir);
+  if (resolved === PROJECT_ROOT) {
+    throw new Error("Refusing to install over the project root.");
+  }
+}
+
+async function resetInstallTarget(targetDir) {
+  try {
+    await lstat(targetDir);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+
+  await rm(targetDir, { recursive: true, force: true });
+}
+
+async function linkInstallItems(targetDir) {
+  await mkdir(path.dirname(targetDir), { recursive: true });
+  await resetInstallTarget(targetDir);
+  const linkType = process.platform === "win32" ? "junction" : "dir";
+  await symlink(PROJECT_ROOT, targetDir, linkType);
+}
+
+export function resolveInstallBaseDir(target, customDest, env = process.env) {
   if (target === "custom") {
     if (!customDest) {
       throw new Error('Use --target custom with --dest.');
     }
     return path.resolve(customDest);
   }
-  return path.resolve(resolveDefaultBaseDir(target));
+  return path.resolve(resolveDefaultBaseDir(target, env));
 }
 
-async function main() {
-  const args = parseCliArgs(process.argv.slice(2));
+export async function main(rawArgs = process.argv.slice(2)) {
+  const args = parseCliArgs(rawArgs);
   if (args.help) {
     printUsage();
     return;
   }
 
   const targets = normalizeTargets(getStringArg(args, "target", "all"));
+  const installMode = resolveInstallMode(getStringArg(args, "mode", DEFAULT_INSTALL_MODE));
   const dryRun = getBoolArg(args, "dry-run", false);
   const skillName = getStringArg(args, "skill-name", SKILL_NAME);
   const customDest = getStringArg(args, "dest", "");
@@ -197,8 +244,10 @@ async function main() {
   for (const target of targets) {
     const baseDir = resolveInstallBaseDir(target, customDest);
     const installDir = path.resolve(baseDir, skillName);
+    assertSafeInstallDir(installDir);
 
     console.log(`[install] target=${target}`);
+    console.log(`[install] mode=${installMode}`);
     console.log(`[install] path=${installDir}`);
 
     if (dryRun) {
@@ -206,12 +255,24 @@ async function main() {
       continue;
     }
 
-    await copyInstallItems(installDir);
+    if (installMode === "link") {
+      await linkInstallItems(installDir);
+      console.log(`[install] runtime-root=${PROJECT_ROOT}`);
+    } else {
+      await resetInstallTarget(installDir);
+      await copyInstallItems(installDir);
+      console.log("[install] note=copy mode requires dependencies in the installed directory");
+    }
     console.log("[install] status=ok");
   }
 }
 
-main().catch((error) => {
-  console.error(`[install] failed: ${error.message}`);
-  process.exit(1);
-});
+const isEntrypoint =
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntrypoint) {
+  main().catch((error) => {
+    console.error(`[install] failed: ${error.message}`);
+    process.exit(1);
+  });
+}

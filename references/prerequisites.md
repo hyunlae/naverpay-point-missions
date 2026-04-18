@@ -18,13 +18,16 @@ npx playwright install chromium
 
 ## Recommended
 
+- Register the skill with `node scripts/install_skill.mjs --target <ai> --mode link` so the cloned repo stays the runtime root.
 - Reuse one persistent profile via `--state-dir` so frequent re-login is avoided.
 - Start with `--dry-run true` and `--max 2` to validate selectors before full run.
 - Keep mission batch size small and verify point history after each batch.
+- Treat reviewed JSON as the default execution input. Live discovery should be an explicit decision.
 
 ## Data Inputs
 
 - Optional mission snapshot JSON from `discover_missions.mjs`.
+- `run_missions.mjs` defaults to reviewed execution and requires `--missions <path>` unless `--live-discovery true` is supplied.
 - Optional custom keywords:
   - Mission actions: `--keywords 링크,적립,참여,받기`
   - Claim buttons (recommended strict): `--claim-keywords 포인트 받기,포인트 쉽게 받기`

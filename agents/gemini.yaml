@@ -1,7 +1,7 @@
 interface:
   display_name: "NaverPay Point Missions"
   short_description: "Run NaverPay point missions safely"
-  default_prompt: "Discover and run NaverPay point missions from point.pay.naver.com with manual login and verification."
+  default_prompt: "Discover, review, and run NaverPay point missions from point.pay.naver.com with manual login and verification."
 runtime:
   skill_entrypoint: "SKILL.md"
   discover_command: "node scripts/discover_missions.mjs"

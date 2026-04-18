@@ -15,7 +15,7 @@ Mission collection is fixed to click-event mission list page:
 ## Workflow
 
 1. Confirm prerequisites in `references/prerequisites.md`.
-2. Discover mission actions from the click-event mission list and save a snapshot:
+2. Discover mission actions and save a reviewed snapshot:
 
 ```bash
 node scripts/discover_missions.mjs \
@@ -24,7 +24,7 @@ node scripts/discover_missions.mjs \
 ```
 
 3. Review discovered missions in the JSON file and remove lines that should not be automated.
-4. Run mission execution:
+4. Run mission execution from the reviewed JSON:
 
 ```bash
 node scripts/run_missions.mjs \
@@ -37,10 +37,21 @@ node scripts/run_missions.mjs \
 
 5. Verify earned points on the NaverPay page after the run.
 
+Advanced mode:
+
+```bash
+node scripts/run_missions.mjs \
+  --state-dir ./.state/naverpay-profile \
+  --live-discovery true \
+  --headless true \
+  --max 10
+```
+
 ## Runtime Rules
 
 - Keep login manual. Do not script credential entry.
 - Keep browser headful by default so login, CAPTCHA, and mission completion can be verified.
+- Default to reviewed execution. `run_missions.mjs` requires `--missions <path>` unless `--live-discovery true` is explicitly provided.
 - Use mission-specific dwell time from discovered JSON (`waitSeconds`) and enforce a minimum wait (`--min-wait-seconds`, default 3).
 - Follow mission popup flow: click mission link -> click popup `포인트 받기` first, then fallback to `받기/적립`.
 - Collect and execute only from click-event mission list page (`mssCode=pp`).
@@ -63,5 +74,6 @@ node scripts/run_missions.mjs \
 
 - If no actions are discovered, scroll/load page manually in the opened browser and re-run discovery.
 - If login timeout occurs, increase `--login-timeout-sec`.
+- If `run_missions` refuses to start, supply a reviewed snapshot with `--missions <path>` or explicitly opt into `--live-discovery true`.
 - If wrong button is clicked, reduce `--max`, edit `--missions` list, and re-run.
 - If mission card text changed, run discovery again to refresh labels/hrefs/card summaries.

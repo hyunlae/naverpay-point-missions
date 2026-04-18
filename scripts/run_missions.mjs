@@ -3,6 +3,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 import { chromium } from "playwright";
 
@@ -46,7 +47,8 @@ function printUsage() {
   node scripts/run_missions.mjs [options]
 
 Options:
-  --missions <path>            Optional JSON from discover_missions.mjs
+  --missions <path>            Reviewed JSON from discover_missions.mjs
+  --live-discovery <bool>      Allow live mission discovery without reviewed JSON (default: false)
   --state-dir <path>           Playwright persistent profile path (default: ./.state/naverpay-profile)
   --completed-store <path>     Completed campaign store JSON path (default: <state-dir>/completed-campaigns.json)
   --ignore-completed <bool>    Ignore completed store and retry all targets (default: false)
@@ -66,6 +68,9 @@ Options:
 `);
 }
 
+export const REVIEWED_EXECUTION_REQUIRED_MESSAGE =
+  "Reviewed execution is now the default. Run discover_missions first, inspect the JSON, then pass --missions <path>. If you intentionally want the old behavior, re-run with --live-discovery true.";
+
 async function loadPlannedMissions(pathOrEmpty) {
   if (!pathOrEmpty) {
     return [];
@@ -74,6 +79,81 @@ async function loadPlannedMissions(pathOrEmpty) {
   const raw = await readFile(pathOrEmpty, "utf8");
   const payload = JSON.parse(raw);
   return loadMissionArray(payload);
+}
+
+export function resolveRunOptions(rawArgs = process.argv.slice(2)) {
+  const args = parseCliArgs(rawArgs);
+  if (args.help) {
+    return { help: true };
+  }
+
+  const stateDir = getStringArg(args, "state-dir", "./.state/naverpay-profile");
+  const completedStorePath = getStringArg(
+    args,
+    "completed-store",
+    path.join(stateDir, "completed-campaigns.json"),
+  );
+  const ignoreCompleted = getBoolArg(args, "ignore-completed", false);
+  const scanMainPointLinks = getBoolArg(args, "scan-main-point-links", true);
+  const onlyNClickCampaigns = getBoolArg(args, "only-nclick-campaigns", true);
+  const missionsPath = getStringArg(args, "missions", "");
+  const liveDiscovery = getBoolArg(args, "live-discovery", false);
+  const headless = getBoolArg(args, "headless", false);
+  const dryRun = getBoolArg(args, "dry-run", false);
+  const loginTimeoutSec = getNumberArg(args, "login-timeout-sec", 240);
+  const legacyWaitArg = args["wait-seconds"];
+  const defaultWaitArg = args["default-wait-seconds"];
+  const waitFallbackRaw = defaultWaitArg ?? legacyWaitArg;
+  const defaultWaitSeconds =
+    waitFallbackRaw === undefined
+      ? 7
+      : (() => {
+          const parsed = Number(waitFallbackRaw);
+          if (Number.isNaN(parsed)) {
+            throw new Error("--default-wait-seconds expects a number");
+          }
+          return parsed;
+        })();
+  const minWaitSeconds = getNumberArg(args, "min-wait-seconds", 3);
+  const maxWaitSeconds = getNumberArg(args, "max-wait-seconds", 120);
+  const maxCount = getNumberArg(args, "max", 200);
+  const actionKeywords = parseCsvArg(args.keywords, DEFAULT_ACTION_KEYWORDS);
+  const claimKeywords = parseCsvArg(args["claim-keywords"], DEFAULT_STRICT_CLAIM_LABELS);
+  const popupPrimaryLabel = getStringArg(
+    args,
+    "popup-primary-label",
+    DEFAULT_POPUP_PRIMARY_LABEL,
+  );
+  const popupExactLabels = [
+    ...new Set([popupPrimaryLabel, ...claimKeywords].map((item) => String(item).trim()).filter(Boolean)),
+  ];
+
+  return {
+    actionKeywords,
+    claimKeywords,
+    completedStorePath,
+    defaultWaitSeconds,
+    dryRun,
+    headless,
+    ignoreCompleted,
+    liveDiscovery,
+    loginTimeoutSec,
+    maxCount,
+    maxWaitSeconds,
+    minWaitSeconds,
+    missionsPath,
+    onlyNClickCampaigns,
+    popupExactLabels,
+    popupPrimaryLabel,
+    scanMainPointLinks,
+    stateDir,
+  };
+}
+
+export function validateRunOptions(options) {
+  if (!options.missionsPath && !options.liveDiscovery) {
+    throw new Error(REVIEWED_EXECUTION_REQUIRED_MESSAGE);
+  }
 }
 
 async function loadCompletedCampaignKeys(storePath) {
@@ -196,52 +276,34 @@ function pickBestMissionMatch(sourceMissions, currentActions, done, completedKey
 }
 
 
-async function main() {
-  const args = parseCliArgs(process.argv.slice(2));
-  if (args.help) {
+export async function main(rawArgs = process.argv.slice(2)) {
+  const options = resolveRunOptions(rawArgs);
+  if (options.help) {
     printUsage();
     return;
   }
+  validateRunOptions(options);
 
-  const stateDir = getStringArg(args, "state-dir", "./.state/naverpay-profile");
-  const completedStorePath = getStringArg(
-    args,
-    "completed-store",
-    path.join(stateDir, "completed-campaigns.json"),
-  );
-  const ignoreCompleted = getBoolArg(args, "ignore-completed", false);
-  const scanMainPointLinks = getBoolArg(args, "scan-main-point-links", true);
-  const onlyNClickCampaigns = getBoolArg(args, "only-nclick-campaigns", true);
-  const missionsPath = getStringArg(args, "missions", "");
-  const headless = getBoolArg(args, "headless", false);
-  const dryRun = getBoolArg(args, "dry-run", false);
-  const loginTimeoutSec = getNumberArg(args, "login-timeout-sec", 240);
-  const legacyWaitArg = args["wait-seconds"];
-  const defaultWaitArg = args["default-wait-seconds"];
-  const waitFallbackRaw = defaultWaitArg ?? legacyWaitArg;
-  const defaultWaitSeconds =
-    waitFallbackRaw === undefined
-      ? 7
-      : (() => {
-          const parsed = Number(waitFallbackRaw);
-          if (Number.isNaN(parsed)) {
-            throw new Error("--default-wait-seconds expects a number");
-          }
-          return parsed;
-        })();
-  const minWaitSeconds = getNumberArg(args, "min-wait-seconds", 3);
-  const maxWaitSeconds = getNumberArg(args, "max-wait-seconds", 120);
-  const maxCount = getNumberArg(args, "max", 200);
-  const actionKeywords = parseCsvArg(args.keywords, DEFAULT_ACTION_KEYWORDS);
-  const claimKeywords = parseCsvArg(args["claim-keywords"], DEFAULT_STRICT_CLAIM_LABELS);
-  const popupPrimaryLabel = getStringArg(
-    args,
-    "popup-primary-label",
-    DEFAULT_POPUP_PRIMARY_LABEL,
-  );
-  const popupExactLabels = [
-    ...new Set([popupPrimaryLabel, ...claimKeywords].map((item) => String(item).trim()).filter(Boolean)),
-  ];
+  const {
+    actionKeywords,
+    claimKeywords,
+    completedStorePath,
+    defaultWaitSeconds,
+    dryRun,
+    headless,
+    ignoreCompleted,
+    liveDiscovery,
+    loginTimeoutSec,
+    maxCount,
+    maxWaitSeconds,
+    minWaitSeconds,
+    missionsPath,
+    onlyNClickCampaigns,
+    popupExactLabels,
+    popupPrimaryLabel,
+    scanMainPointLinks,
+    stateDir,
+  } = options;
 
   await mkdir(stateDir, { recursive: true });
 
@@ -258,7 +320,17 @@ async function main() {
     await ensureLoggedIn(page, loginTimeoutSec);
 
     let plannedMissions = await loadPlannedMissions(missionsPath);
-    if (plannedMissions.length === 0) {
+    if (missionsPath) {
+      plannedMissions = plannedMissions.map((mission) => ({
+        ...mission,
+        sourceListUrl: missionSourceUrl(mission),
+      }));
+      console.log(`[run] loaded ${plannedMissions.length} missions from ${missionsPath}`);
+      if (plannedMissions.length === 0) {
+        console.log(`[run] no missions found in reviewed snapshot: ${missionsPath}`);
+        return;
+      }
+    } else if (liveDiscovery) {
       if (scanMainPointLinks) {
         plannedMissions = await discoverMissionsFromMainPointLinks(
           page,
@@ -291,12 +363,6 @@ async function main() {
           `[run] using ${plannedMissions.length} auto-discovered missions from click mission page`,
         );
       }
-    } else {
-      plannedMissions = plannedMissions.map((mission) => ({
-        ...mission,
-        sourceListUrl: missionSourceUrl(mission),
-      }));
-      console.log(`[run] loaded ${plannedMissions.length} missions from ${missionsPath}`);
     }
 
     if (onlyNClickCampaigns) {
@@ -601,7 +667,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(`[run] failed: ${error.message}`);
-  process.exit(1);
-});
+const isEntrypoint =
+  Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isEntrypoint) {
+  main().catch((error) => {
+    console.error(`[run] failed: ${error.message}`);
+    process.exit(1);
+  });
+}
