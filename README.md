@@ -77,6 +77,34 @@ npm install
 npx playwright install chromium
 ```
 
+## skills.sh
+
+이 저장소는 `skills` CLI가 인식하는 공개 skill repo 형식도 함께 만족합니다.
+
+공개 설치/탐색 커맨드:
+
+```bash
+npx skills add hyunlae/naverpay-point-missions --skill naverpay-point-missions
+```
+
+목적:
+
+- `skills.sh`/`skills` 생태계에서 이 skill을 발견하고 설치하기
+- leaderboard telemetry 경로를 타기
+- GitHub 저장소만으로 skill repo 형식을 검증하기
+
+주의:
+
+- `skills` CLI로는 이 저장소가 정상 인식됩니다.
+- 다만 현재 확인된 동작 기준으로는 Codex 전용 글로벌 설치 경로(`~/.codex/skills`)보다 canonical copy(`~/.agents/skills/...`) 중심으로 배치되며, agent 표기도 Codex와 정확히 일치하지 않을 수 있습니다.
+- 그래서 실제 Codex 런타임에는 아래의 `repo-backed link` 설치를 계속 권장합니다.
+
+Codex 권장 설치:
+
+```bash
+node scripts/install_skill.mjs --target codex --mode link
+```
+
 ## Release
 
 현재 첫 release 버전은 `1.0.0`입니다.

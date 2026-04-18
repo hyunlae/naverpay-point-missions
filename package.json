@@ -1,5 +1,11 @@
 {
+  "name": "naverpay-point-missions",
+  "description": "Playwright-based NaverPay point mission automation skill with reviewed snapshots and manual-login-safe execution.",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyunlae/naverpay-point-missions.git"
+  },
   "scripts": {
     "test": "node --test",
     "release": "node scripts/release.mjs"
