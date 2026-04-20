@@ -5,7 +5,9 @@ import {
   extractWaitSecondsFromText,
   findBestAction,
   hasNClickBadgeSignal,
+  isLowQualityMissionLabel,
   launchContextWithLoginBootstrap,
+  normalizeMissionCatalog,
   resolveMissionWaitSeconds,
 } from "../scripts/naverpay_helpers.mjs";
 
@@ -70,6 +72,40 @@ test("hasNClickBadgeSignal falls back to visible badge text heuristics", () => {
     }),
     true,
   );
+});
+
+test("isLowQualityMissionLabel rejects isolated jamo noise", () => {
+  assert.equal(isLowQualityMissionLabel("클릭 10원 ㅁ ㅁ"), true);
+  assert.equal(isLowQualityMissionLabel("메디큐브 클릭 10원"), false);
+});
+
+test("normalizeMissionCatalog collapses duplicate campaigns and drops low-quality labels", () => {
+  const normalized = normalizeMissionCatalog([
+    {
+      label: "메디큐브",
+      href: "https://brand.example/offer?utm_source=benefit_a",
+      cardText: "메디큐브 클릭 15원",
+      sourceListUrl: "https://point.pay.naver.com/source/a",
+      waitSeconds: 7,
+    },
+    {
+      label: "메디큐브",
+      href: "https://brand.example/offer?utm_source=benefit_b",
+      cardText: "메디큐브 클릭 15원 랜덤딜",
+      sourceListUrl: "https://point.pay.naver.com/source/b",
+      waitSeconds: 7,
+    },
+    {
+      label: "클릭 10원 ㅁ ㅁ",
+      href: "https://brand.example/noisy",
+      cardText: "클릭 10원 ㅁ ㅁ",
+      sourceListUrl: "https://point.pay.naver.com/source/c",
+      waitSeconds: 7,
+    },
+  ]);
+
+  assert.equal(normalized.length, 1);
+  assert.equal(normalized[0].label, "메디큐브");
 });
 
 test("launchContextWithLoginBootstrap reuses an existing headless session when already logged in", async () => {

@@ -14,6 +14,7 @@ import {
   getNumberArg,
   getStringArg,
   launchContextWithLoginBootstrap,
+  normalizeMissionCatalog,
   parseCliArgs,
   parseCsvArg,
 } from "./naverpay_helpers.mjs";
@@ -66,13 +67,14 @@ export async function main(rawArgs = process.argv.slice(2), deps = {}) {
   try {
     console.log("[discover] opening NaverPay main page for login");
 
-    const missions = await discoverMissionsFromMainPointLinks(
+    const discovered = await discoverMissionsFromMainPointLinks(
       page,
       context,
       keywords,
       defaultWaitSeconds,
       { requireNClickMainLink: false, logPrefix: "[discover]" },
     );
+    const missions = normalizeMissionCatalog(discovered);
 
     const payload = {
       generatedAt: new Date().toISOString(),

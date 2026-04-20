@@ -33,6 +33,7 @@ import {
   launchContextWithLoginBootstrap,
   loadMissionArray,
   missionKey,
+  normalizeMissionCatalog,
   parseCliArgs,
   parseCsvArg,
   resolveMissionWaitSeconds,
@@ -89,7 +90,7 @@ async function loadPlannedMissions(pathOrEmpty) {
 
 export async function preloadReviewedMissions(missionsPath) {
   const plannedMissions = await loadPlannedMissions(missionsPath);
-  return plannedMissions.map((mission) => ({
+  return normalizeMissionCatalog(plannedMissions).map((mission) => ({
     ...mission,
     sourceListUrl: missionSourceUrl(mission),
   }));
@@ -289,6 +290,50 @@ function pickBestMissionMatch(sourceMissions, currentActions, done, completedKey
   };
 }
 
+export function buildExecutionResult({
+  chosenAction,
+  sourceUrl,
+  waitPlan,
+  claim = { clicked: false },
+  popupClaimClicked = false,
+  popupClaimLabel = "",
+  alreadyCompletedPopup = false,
+  alreadyCompletedConfirmClicked = false,
+  alreadyCompletedPopupText = "",
+  dryRun = false,
+}) {
+  const claimed = Boolean(claim?.clicked) || Boolean(popupClaimClicked);
+  const resolved = claimed || Boolean(alreadyCompletedPopup);
+
+  let resolutionPath = "unresolved";
+  if (dryRun) {
+    resolutionPath = "dry-run";
+  } else if (alreadyCompletedPopup) {
+    resolutionPath = "already-completed";
+  } else if (popupClaimClicked) {
+    resolutionPath = "popup-claim";
+  } else if (claim?.clicked) {
+    resolutionPath = "post-claim";
+  }
+
+  return {
+    label: chosenAction.label,
+    href: chosenAction.href,
+    sourceListUrl: sourceUrl,
+    claimed,
+    resolved,
+    resolutionPath,
+    alreadyCompletedPopup,
+    alreadyCompletedConfirmClicked,
+    alreadyCompletedPopupText,
+    waitSeconds: waitPlan.waitSeconds,
+    waitSource: waitPlan.source,
+    popupClaimClicked,
+    popupClaimLabel,
+    dryRun,
+  };
+}
+
 
 export async function main(rawArgs = process.argv.slice(2), deps = {}) {
   const options = resolveRunOptions(rawArgs);
@@ -379,6 +424,8 @@ export async function main(rawArgs = process.argv.slice(2), deps = {}) {
         );
       }
     }
+
+    plannedMissions = normalizeMissionCatalog(plannedMissions);
 
     if (onlyNClickCampaigns) {
       const beforeCount = plannedMissions.length;
@@ -484,19 +531,14 @@ export async function main(rawArgs = process.argv.slice(2), deps = {}) {
         console.log(`[run] dwell ${waitPlan.waitSeconds}s (${waitPlan.source})`);
 
         if (dryRun) {
-          executed.push({
-            label: chosenAction.label,
-            href: chosenAction.href,
-            sourceListUrl: sourceUrl,
-            claimed: false,
-            alreadyCompletedPopup: false,
-            alreadyCompletedConfirmClicked: false,
-            waitSeconds: waitPlan.waitSeconds,
-            waitSource: waitPlan.source,
-            popupClaimClicked: false,
-            popupClaimLabel: "",
-            dryRun: true,
-          });
+          executed.push(
+            buildExecutionResult({
+              chosenAction,
+              sourceUrl,
+              waitPlan,
+              dryRun: true,
+            }),
+          );
           continue;
         }
 
@@ -511,6 +553,8 @@ export async function main(rawArgs = process.argv.slice(2), deps = {}) {
             href: chosenAction.href,
             sourceListUrl: sourceUrl,
             claimed: false,
+            resolved: false,
+            resolutionPath: "click-failed",
             waitSeconds: waitPlan.waitSeconds,
             waitSource: waitPlan.source,
             popupClaimClicked: false,
@@ -647,21 +691,20 @@ export async function main(rawArgs = process.argv.slice(2), deps = {}) {
         }
         await page.waitForTimeout(1500);
 
-        executed.push({
-          label: chosenAction.label,
-          href: chosenAction.href,
-          sourceListUrl: sourceUrl,
-          claimed: claim.clicked,
+        const executionResult = buildExecutionResult({
+          chosenAction,
+          sourceUrl,
+          waitPlan,
+          claim,
+          popupClaimClicked,
+          popupClaimLabel,
           alreadyCompletedPopup,
           alreadyCompletedConfirmClicked,
           alreadyCompletedPopupText,
-          waitSeconds: waitPlan.waitSeconds,
-          waitSource: waitPlan.source,
-          popupClaimClicked,
-          popupClaimLabel,
         });
+        executed.push(executionResult);
 
-        const completedNow = alreadyCompletedPopup || popupClaimClicked || claim.clicked;
+        const completedNow = executionResult.resolved;
         if (!dryRun && !ignoreCompleted && completedNow) {
           if (!completedKeys.has(key)) {
             completedKeys.add(key);
@@ -674,7 +717,7 @@ export async function main(rawArgs = process.argv.slice(2), deps = {}) {
     console.log(`[run] completed ${executed.length} target(s)`);
     executed.forEach((item, index) => {
       console.log(
-        `${String(index + 1).padStart(2, "0")}. ${item.label} | list=${item.sourceListUrl || "-"} | wait=${item.waitSeconds}s | source=${item.waitSource} | popupClaim=${item.popupClaimClicked ? item.popupClaimLabel || "yes" : "no"} | alreadyCompleted=${item.alreadyCompletedPopup ? "yes" : "no"} | claimed=${item.claimed}${item.dryRun ? " | dry-run" : ""}`,
+        `${String(index + 1).padStart(2, "0")}. ${item.label} | list=${item.sourceListUrl || "-"} | wait=${item.waitSeconds}s | source=${item.waitSource} | path=${item.resolutionPath || "-"} | resolved=${item.resolved ? "yes" : "no"} | claimed=${item.claimed ? "yes" : "no"} | popupClaim=${item.popupClaimClicked ? item.popupClaimLabel || "yes" : "no"} | alreadyCompleted=${item.alreadyCompletedPopup ? "yes" : "no"}${item.dryRun ? " | dry-run" : ""}`,
       );
     });
   } finally {

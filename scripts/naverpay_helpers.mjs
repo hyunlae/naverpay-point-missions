@@ -157,6 +157,105 @@ export function hasNClickBadgeSignal(item) {
   return isNClickPointCampaignLabel(`${item.label ?? ""} ${item.cardText ?? ""}`);
 }
 
+export function isLowQualityMissionLabel(value) {
+  const label = normalizeText(value);
+  if (!label) {
+    return true;
+  }
+  if (label.includes("�")) {
+    return true;
+  }
+  return /(?:^|\s)[ㄱ-ㅎㅏ-ㅣ](?:\s+[ㄱ-ㅎㅏ-ㅣ])+(?:\s|$)/.test(label);
+}
+
+function normalizeMissionHrefForFingerprint(value) {
+  const raw = normalizeText(value);
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    const url = new URL(raw);
+    return `${url.origin}${url.pathname}`.toLowerCase();
+  } catch {
+    return raw.replace(/[?#].*$/, "").toLowerCase();
+  }
+}
+
+function normalizeMissionLabelForFingerprint(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/n\s*클릭/gi, "n클릭")
+    .replace(/클릭\s*\d[\d,]*(?:\.\d+)?\s*원/gi, " ")
+    .replace(/\d[\d,]*(?:\.\d+)?\s*원\s*클릭/gi, " ")
+    .replace(/\d[\d,]*(?:\.\d+)?\s*원/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeMissionCardForFingerprint(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/\d[\d,]*(?:\.\d+)?\s*원/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function missionFingerprint(mission) {
+  const label = normalizeMissionLabelForFingerprint(mission?.label);
+  const href = normalizeMissionHrefForFingerprint(mission?.href);
+  const card = normalizeMissionCardForFingerprint(mission?.cardText);
+
+  if (label && href) {
+    return `${label}|${href}`;
+  }
+  if (label && card) {
+    return `${label}|${card}`;
+  }
+  if (href && card) {
+    return `${href}|${card}`;
+  }
+  return missionKey(mission);
+}
+
+export function normalizeMissionCatalog(missions = []) {
+  const normalized = [];
+  const seen = new Set();
+
+  for (const mission of missions) {
+    if (!mission) {
+      continue;
+    }
+
+    const item = {
+      ...mission,
+      label: normalizeText(mission.label),
+      href: normalizeText(mission.href),
+      cardText: normalizeText(mission.cardText),
+    };
+
+    if (!item.label) {
+      continue;
+    }
+
+    const labelLooksBad = isLowQualityMissionLabel(item.label);
+    const cardLooksBad = item.cardText ? isLowQualityMissionLabel(item.cardText) : true;
+    if (labelLooksBad && cardLooksBad) {
+      continue;
+    }
+
+    const key = missionFingerprint(item);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    normalized.push(item);
+  }
+
+  return normalized;
+}
+
 function escapeRegExp(value) {
   return String(value ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
