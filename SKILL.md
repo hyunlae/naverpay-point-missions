@@ -19,7 +19,15 @@ description: 네이버페이 포인트 미션을 검토 기반으로 실행하�
 
 ## 권장 워크플로
 
-1. `references/prerequisites.md`를 먼저 확인합니다.
+1. `references/prerequisites.md`를 먼저 확인하고, 새 환경이라면 의존성을 설치합니다.
+
+```bash
+npm install
+npx playwright install chromium
+```
+
+`run_missions.mjs` 또는 `discover_missions.mjs` 실행 시 `Cannot find package 'playwright'`가 나오면 브라우저/로그인 이슈가 아니라 로컬 의존성 누락이므로, 위 명령으로 먼저 복구한 뒤 다시 실행합니다.
+
 2. 미션 후보를 수집하고 검토용 JSON을 저장합니다.
 
 ```bash
@@ -96,6 +104,7 @@ node scripts/run_missions.mjs \
 
 - 수집 결과가 비어 있으면, 열린 브라우저에서 페이지를 조금 더 로딩/스크롤한 뒤 discovery를 다시 실행합니다.
 - 로그인 타임아웃이 나면 `--login-timeout-sec`를 늘립니다. `--headless true`였다면 임시로 열린 visible 브라우저에서 먼저 로그인을 완료합니다.
+- `Cannot find package 'playwright'` 또는 비슷한 모듈 로드 에러가 나면 `npm install`과 `npx playwright install chromium`로 로컬 의존성을 먼저 복구한 뒤 같은 명령을 다시 실행합니다.
 - `run_missions`가 시작조차 안 되면 `--missions <path>`를 넘겼는지, 또는 정말 `--live-discovery true`가 필요한지 먼저 확인합니다.
 - 잘못된 버튼이 선택되면 `--max`를 줄이고, `--missions` 목록을 편집한 뒤 다시 실행합니다.
 - 카드 문구가 바뀌었으면 discovery를 다시 실행해 라벨, 링크, 카드 요약을 갱신합니다.
