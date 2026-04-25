@@ -11,9 +11,12 @@
 - Playwright 패키지와 Chromium 브라우저 바이너리
 
 ```bash
-npm install -D playwright
+npm install
 npx playwright install chromium
 ```
+
+- `Cannot find package 'playwright'`가 뜨면 로그인이나 세션 문제가 아니라 의존성 누락입니다.
+  - 저장소 루트에서 `npm install`을 먼저 실행한 뒤 같은 명령을 재시도합니다.
 
 - 안정적인 네트워크와 Chromium 팝업 허용
 
@@ -53,3 +56,5 @@ npx playwright install chromium
   - 일일 한도, 참여 자격, 쿨다운 등
 
 이런 상황이 생기면 자동화를 멈추고, 열린 브라우저에서 먼저 수동으로 확인한 뒤 discovery를 다시 갱신하는 것이 맞습니다.
+
+추가로, 실행이 브라우저 시작 전 `ERR_MODULE_NOT_FOUND`로 종료되면 사이트 이슈를 의심하기보다 로컬 의존성 설치 상태부터 확인하는 것이 맞습니다.
