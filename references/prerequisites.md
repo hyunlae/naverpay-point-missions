@@ -10,13 +10,23 @@
 - Node.js 18 이상
 - Playwright 패키지와 Chromium 브라우저 바이너리
 
+자동 점검/복구:
+
+```bash
+node scripts/ensure_runtime.mjs
+```
+
+이 명령은 `playwright` 패키지가 없으면 `npm install`을 실행하고, Chromium 캐시가 없으면 `npx playwright install chromium`을 실행합니다. 에이전트나 자동화는 미션 수집/실행 전에 이 명령을 먼저 실행해야 합니다.
+
+수동 설치:
+
 ```bash
 npm install
 npx playwright install chromium
 ```
 
 - `Cannot find package 'playwright'`가 뜨면 로그인이나 세션 문제가 아니라 의존성 누락입니다.
-  - 저장소 루트에서 `npm install`을 먼저 실행한 뒤 같은 명령을 재시도합니다.
+  - 저장소 루트에서 `node scripts/ensure_runtime.mjs`를 먼저 실행한 뒤 같은 명령을 재시도합니다.
 
 - 안정적인 네트워크와 Chromium 팝업 허용
 

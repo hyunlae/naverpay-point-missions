@@ -19,7 +19,15 @@ description: 네이버페이 포인트 미션을 검토 기반으로 실행하�
 
 ## 권장 워크플로
 
-1. `references/prerequisites.md`를 먼저 확인하고, 새 환경이라면 의존성을 설치합니다.
+0. 실행 전에 런타임 사전점검을 먼저 수행합니다. 에이전트/자동화가 이 스킬을 사용할 때는 `run_missions.mjs` 또는 `discover_missions.mjs`를 바로 실행하지 말고, 저장소 루트에서 아래 명령을 먼저 실행해 누락된 로컬 의존성을 자동 복구합니다.
+
+```bash
+node scripts/ensure_runtime.mjs
+```
+
+`playwright` 패키지가 없으면 `npm install`을 자동 실행하고, Chromium 캐시가 없으면 `npx playwright install chromium`을 실행합니다. 설치 명령이 제한 시간 안에 끝나지 않으면 네이버 로그인/CAPTCHA 문제가 아니라 로컬 런타임 설치 blocker로 보고합니다.
+
+1. `references/prerequisites.md`를 먼저 확인하고, 새 환경이라면 의존성을 설치합니다. 수동으로 처리해야 하는 경우 아래 명령을 사용합니다.
 
 ```bash
 npm install
@@ -87,9 +95,11 @@ node scripts/run_missions.mjs \
 - 이전 실행에서 완료된 캠페인은 완료 이력 저장소를 이용해 기본적으로 건너뜁니다.
 - UI 라벨이나 카드 구조가 바뀌면 discovery를 다시 돌립니다.
 - CAPTCHA, 추가 동의, 예상하지 못한 팝업이 나오면 즉시 사용자에게 제어를 돌려줍니다.
+- 실행 전 `node scripts/ensure_runtime.mjs`로 `playwright` 패키지와 Chromium 캐시를 확인합니다. 누락된 런타임은 자동 설치하고, 설치 실패/타임아웃은 명확한 blocker로 보고합니다.
 
 ## 주요 스크립트
 
+- `scripts/ensure_runtime.mjs`: 실행 전 `npm install`과 Chromium 캐시 상태를 점검하고, 누락된 런타임을 자동 복구합니다.
 - `scripts/discover_missions.mjs`: 네이버페이 메인 페이지를 열고, 필요하면 visible 로그인 bootstrap을 수행한 뒤, 클릭 가능한 미션 후보를 수집해서 JSON으로 저장합니다.
 - `scripts/run_missions.mjs`: 검토된 JSON 또는 명시적 live discovery 결과를 바탕으로 미션을 매칭하고, 미션 링크 클릭과 팝업 적립까지 순차 실행합니다.
 - `scripts/naverpay_helpers.mjs`: 로그인 bootstrap, 미션 수집, 매칭, 클릭 실행 공용 유틸입니다.

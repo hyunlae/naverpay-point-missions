@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.3 - 2026-04-27
+- 런타임 사전점검 스크립트 추가로 Playwright 패키지와 Chromium 캐시를 자동 복구합니다
+- 스킬/README/사전 준비 문서에 자동화 실행 전 ensure_runtime 흐름을 명시했습니다
+- 테스트 실행 범위를 tests/*.mjs로 고정해 로컬 Chrome 프로필 파일이 테스트로 탐색되지 않게 했습니다
+
 ## 1.0.2 - 2026-04-25
 - 실행 전 npm install 및 Chromium 설치 절차 명시
 - Playwright 모듈 누락 시 로컬 의존성 복구 흐름 안내 추가

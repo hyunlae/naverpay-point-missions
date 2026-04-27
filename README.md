@@ -40,6 +40,12 @@ node scripts/install_skill.mjs --target codex --mode link
 이 경로가 Codex 기준의 공식 권장 설치 경로입니다.
 `skills.sh` 설치는 발견용 채널로는 유효하지만, 실제 Codex 런타임 연결은 이 저장소를 `link`하는 방식이 가장 안정적입니다.
 
+에이전트/자동화에서 실행할 때는 미션 수집 또는 실행 전에 아래 사전점검을 먼저 호출하면 누락된 로컬 런타임을 자동 복구합니다.
+
+```bash
+node scripts/ensure_runtime.mjs
+```
+
 ### 2) 최초 로그인 + 미션 후보 수집
 
 ```bash
@@ -395,6 +401,7 @@ git push origin v1.0.0
 ## 저장소 구성
 
 - `SKILL.md`: 공통 스킬 설명
+- `scripts/ensure_runtime.mjs`: Playwright 패키지와 Chromium 캐시 자동 점검/복구 스크립트
 - `scripts/run_missions.mjs`: 미션 실행 스크립트
 - `scripts/discover_missions.mjs`: 미션 후보 수집 스크립트
 - `scripts/naverpay_helpers.mjs`: URL/셀렉터/클릭/대기 계산 유틸
