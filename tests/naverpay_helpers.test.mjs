@@ -5,7 +5,9 @@ import {
   extractWaitSecondsFromText,
   findBestAction,
   hasNClickBadgeSignal,
+  HEADLESS_CHANNEL_FALLBACK,
   isLowQualityMissionLabel,
+  isHeadlessShellLaunchFailure,
   launchContextWithLoginBootstrap,
   normalizeMissionCatalog,
   resolveMissionWaitSeconds,
@@ -79,6 +81,18 @@ test("isLowQualityMissionLabel rejects isolated jamo noise", () => {
   assert.equal(isLowQualityMissionLabel("메디큐브 클릭 10원"), false);
 });
 
+test("isHeadlessShellLaunchFailure detects mach port headless shell crashes", () => {
+  assert.equal(
+    isHeadlessShellLaunchFailure(
+      new Error(
+        "browserType.launchPersistentContext: Target page, context or browser has been closed\nchrome-headless-shell\nPermission denied (1100)",
+      ),
+    ),
+    true,
+  );
+  assert.equal(isHeadlessShellLaunchFailure(new Error("network timeout")), false);
+});
+
 test("normalizeMissionCatalog collapses duplicate campaigns and drops low-quality labels", () => {
   const normalized = normalizeMissionCatalog([
     {
@@ -142,6 +156,43 @@ test("launchContextWithLoginBootstrap reuses an existing headless session when a
   assert.equal(result.bootstrappedHeadfulLogin, false);
   assert.equal(result.page.id, "page-1");
   assert.equal(loginCalls.length, 1);
+});
+
+test("launchContextWithLoginBootstrap retries headless launches with Chromium channel after shell crash", async () => {
+  const launches = [];
+  const browserType = {
+    async launchPersistentContext(_stateDir, options) {
+      launches.push({ headless: options.headless, channel: options.channel ?? "" });
+      if (launches.length === 1) {
+        throw new Error(
+          "browserType.launchPersistentContext: Target page, context or browser has been closed\nchrome-headless-shell\nPermission denied (1100)",
+        );
+      }
+      const page = { id: `page-${launches.length}` };
+      return {
+        pages() {
+          return [page];
+        },
+        async newPage() {
+          return page;
+        },
+        async close() {},
+      };
+    },
+  };
+
+  const result = await launchContextWithLoginBootstrap({
+    browserType,
+    stateDir: "/tmp/naverpay-profile",
+    headless: true,
+    ensureLoggedInFn: async () => {},
+  });
+
+  assert.deepEqual(launches, [
+    { headless: true, channel: "" },
+    { headless: true, channel: HEADLESS_CHANNEL_FALLBACK },
+  ]);
+  assert.equal(result.page.id, "page-2");
 });
 
 test("launchContextWithLoginBootstrap falls back to visible login before resuming headless", async () => {

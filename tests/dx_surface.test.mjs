@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { DISCOVER_USAGE_TEXT } from "../scripts/discover_missions.mjs";
 import { INSTALL_USAGE_TEXT } from "../scripts/install_skill.mjs";
 import { RELEASE_USAGE_TEXT } from "../scripts/release.mjs";
-import { REVIEWED_EXECUTION_REQUIRED_MESSAGE, RUN_USAGE_TEXT } from "../scripts/run_missions.mjs";
+import { DEFAULT_EXECUTION_MODE_MESSAGE, RUN_USAGE_TEXT } from "../scripts/run_missions.mjs";
 
 async function readUtf8(filePath) {
   return readFile(new URL(`../${filePath}`, import.meta.url), "utf8");
@@ -27,14 +27,17 @@ test("README promotes the Codex quick-start path before ecosystem and release do
   assert.ok(codexInstallIndex < skillsIndex, "Codex install guidance should appear before skills.sh guidance");
 });
 
-test("README includes a dry-run smoke path before real mission execution", async () => {
+test("README presents immediate execution before optional dry-run review", async () => {
   const readme = await readUtf8("README.md");
+  const immediateIndex = readme.indexOf("### 3) 즉시 실행");
   const smokeIndex = readme.indexOf("--dry-run true");
-  const realRunIndex = readme.indexOf("### 4) 실제 실행");
+  const reviewIndex = readme.indexOf("### 4) 선택: JSON 검토 + `dry-run`");
 
+  assert.ok(immediateIndex >= 0, "README should show direct execution as the default path");
   assert.ok(smokeIndex >= 0, "README should show a dry-run command for first verification");
-  assert.ok(realRunIndex >= 0, "README should split dry-run from real execution");
-  assert.ok(smokeIndex < realRunIndex, "Dry-run guidance should come before the real run command");
+  assert.ok(reviewIndex >= 0, "README should split optional review from default execution");
+  assert.ok(immediateIndex < reviewIndex, "Default execution guidance should come before optional review");
+  assert.ok(reviewIndex < smokeIndex, "Dry-run guidance should live in the optional review section");
 });
 
 test("public docs and package metadata are Korean-first", async () => {
@@ -49,7 +52,7 @@ test("public docs and package metadata are Korean-first", async () => {
   assert.match(prerequisites, /사전 준비 사항/);
   assert.match(agentReadme, /에이전트 매니페스트/);
   assert.match(openaiManifest, /네이버페이 포인트 미션/);
-  assert.match(openaiManifest, /검토 기반 실행/);
+  assert.match(openaiManifest, /즉시 실행/);
   assert.match(packageJson.description, /네이버페이/);
 });
 
@@ -65,5 +68,5 @@ test("CLI usage text is Korean-first across the main entry points", () => {
   }
 
   assert.match(RUN_USAGE_TEXT, /--dry-run <true\|false>\s+실제 클릭 없이/);
-  assert.match(REVIEWED_EXECUTION_REQUIRED_MESSAGE, /검토된 JSON/);
+  assert.match(DEFAULT_EXECUTION_MODE_MESSAGE, /기본값은 즉시 실행/);
 });

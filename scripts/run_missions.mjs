@@ -47,8 +47,8 @@ export const RUN_USAGE_TEXT = `사용법:
   node scripts/run_missions.mjs [옵션]
 
 옵션:
-  --missions <path>            discover_missions 결과를 검토한 JSON 경로
-  --live-discovery <bool>      검토된 JSON 없이 실시간 수집 후 실행 허용 (기본값: false)
+  --missions <path>            discover_missions 결과를 검토한 JSON 경로 (없으면 실시간 수집 후 바로 실행)
+  --live-discovery <bool>      검토된 JSON 없이 실시간 수집 후 실행 허용 (기본값: true)
   --state-dir <path>           Playwright 프로필 경로 (기본값: ./.state/naverpay-profile)
   --completed-store <path>     완료 이력 JSON 경로 (기본값: <state-dir>/completed-campaigns.json)
   --ignore-completed <bool>    완료 이력을 무시하고 재시도 (기본값: false)
@@ -67,6 +67,7 @@ export const RUN_USAGE_TEXT = `사용법:
   --login-timeout-sec <num>    로그인 대기 제한 시간(초) (기본값: 240)
 
 예시:
+  node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile --headless true --max 200
   node scripts/run_missions.mjs --missions /tmp/naverpay-missions.json --state-dir ./.state/naverpay-profile --headless true --max 5 --dry-run true
   node scripts/run_missions.mjs --missions /tmp/naverpay-missions.json --state-dir ./.state/naverpay-profile --headless true --max 200
 `;
@@ -75,8 +76,9 @@ function printUsage() {
   console.log(RUN_USAGE_TEXT);
 }
 
-export const REVIEWED_EXECUTION_REQUIRED_MESSAGE =
-  "이제 검토 기반 실행이 기본값입니다. 먼저 discover_missions로 미션을 수집하고 검토된 JSON을 확인한 뒤 --missions <path>를 넘겨주세요. 예전처럼 즉시 수집/실행이 필요하면 --live-discovery true로 다시 실행하세요.";
+export const DEFAULT_EXECUTION_MODE_MESSAGE =
+  "기본값은 즉시 실행입니다. 검토된 JSON이 없으면 실시간 수집 후 바로 실행합니다. 이를 막으려면 --missions <path>를 주거나 --live-discovery false를 명시하세요.";
+export const REVIEWED_EXECUTION_REQUIRED_MESSAGE = DEFAULT_EXECUTION_MODE_MESSAGE;
 
 async function loadPlannedMissions(pathOrEmpty) {
   if (!pathOrEmpty) {
@@ -112,7 +114,7 @@ export function resolveRunOptions(rawArgs = process.argv.slice(2)) {
   const scanMainPointLinks = getBoolArg(args, "scan-main-point-links", true);
   const onlyNClickCampaigns = getBoolArg(args, "only-nclick-campaigns", true);
   const missionsPath = getStringArg(args, "missions", "");
-  const liveDiscovery = getBoolArg(args, "live-discovery", false);
+  const liveDiscovery = getBoolArg(args, "live-discovery", true);
   const headless = getBoolArg(args, "headless", false);
   const dryRun = getBoolArg(args, "dry-run", false);
   const loginTimeoutSec = getNumberArg(args, "login-timeout-sec", 240);
@@ -167,7 +169,7 @@ export function resolveRunOptions(rawArgs = process.argv.slice(2)) {
 
 export function validateRunOptions(options) {
   if (!options.missionsPath && !options.liveDiscovery) {
-    throw new Error(REVIEWED_EXECUTION_REQUIRED_MESSAGE);
+    throw new Error(DEFAULT_EXECUTION_MODE_MESSAGE);
   }
 }
 

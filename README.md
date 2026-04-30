@@ -1,19 +1,20 @@
 # naverpay-point-missions
 
-> 최초 로그인만 화면에서 처리하고, 이후에는 같은 세션을 헤드리스로 재사용하면서 네이버페이 포인트 미션을 검토 기반으로 실행하는 Playwright 자동화 도구입니다.
+> 최초 로그인만 화면에서 처리하고, 이후에는 같은 세션을 헤드리스로 재사용하면서 네이버페이 포인트 미션을 즉시 수집/실행하는 Playwright 자동화 도구입니다.
 
-이 도구는 `https://point.pay.naver.com/pc/main`의 네이버페이 포인트 미션을 바로 클릭하지 않습니다.
-먼저 후보를 수집하고, 사람이 JSON을 검토한 뒤, 승인한 항목만 실행하는 것을 기본값으로 둡니다.
+이 도구는 `https://point.pay.naver.com/pc/main`의 네이버페이 포인트 미션을 저장된 세션으로 열고, 기본적으로 실시간 후보 수집 후 바로 실행합니다.
+사전 검토가 필요하면 별도로 후보 JSON을 만들고 `--missions <path>`를 넘기는 흐름을 사용할 수 있습니다.
 
 이 도구가 특히 적합한 경우:
 
-- 네이버페이 미션을 반복 실행하되 신규 캠페인은 먼저 검토하고 싶을 때
+- 네이버페이 미션을 반복 실행하되 저장된 세션으로 자연스럽게 headless 재실행하고 싶을 때
 - 최초 로그인만 화면에서 수동으로 처리하고, 이후에는 같은 `--state-dir`를 헤드리스로 재사용하고 싶을 때
 - Codex, Claude Code, Gemini CLI에서 하나의 저장소 연결형 실행 환경을 공용으로 쓰고 싶을 때
 
 핵심 원칙:
 
-- `reviewed-by-default`: `discover -> JSON 검토 -> run --missions`
+- `run-by-default`: `run_missions.mjs`는 `--missions`가 없으면 실시간 수집 후 바로 실행
+- `review-when-needed`: 검토가 필요할 때만 `discover -> JSON 검토 -> run --missions`
 - `manual-first login`: 저장된 세션이 없으면 화면 브라우저를 한 번 열어 로그인한 뒤 헤드리스로 재개
 - `repo-backed install`: AI 런타임에는 얇은 링크만 두고, 실제 코드와 의존성은 이 저장소에 유지
 
@@ -46,50 +47,45 @@ node scripts/install_skill.mjs --target codex --mode link
 node scripts/ensure_runtime.mjs
 ```
 
-### 2) 최초 로그인 + 미션 후보 수집
+### 2) 런타임 점검
+
+```bash
+node scripts/ensure_runtime.mjs
+```
+
+자동화 환경에서 `npm`이 PATH에 없으면 Node 설치 경로를 PATH에 추가한 뒤 실행하세요.
+
+```bash
+export PATH="/Users/danny/.nvm/versions/node/v20.19.2/bin:$PATH"
+/Users/danny/.nvm/versions/node/v20.19.2/bin/node scripts/ensure_runtime.mjs
+```
+
+### 3) 즉시 실행
+
+```bash
+node scripts/run_missions.mjs \
+  --state-dir ./.state/naverpay-profile \
+  --headless true \
+  --max 200
+```
+
+처음 실행이면 저장된 세션이 없기 때문에 화면 브라우저가 잠깐 열립니다.
+그 창에서 네이버 로그인만 완료하면, 같은 `--state-dir`에 세션이 저장되고 이후 실행은 headless로 이어집니다.
+
+### 4) 선택: JSON 검토 + `dry-run`
 
 ```bash
 node scripts/discover_missions.mjs \
   --state-dir ./.state/naverpay-profile \
   --out /tmp/naverpay-missions.json \
   --headless true
-```
 
-처음 실행이면 저장된 세션이 없기 때문에 화면 브라우저가 잠깐 열립니다.
-그 창에서 네이버 로그인만 완료하면, 같은 `--state-dir`에 세션이 저장되고 이후 단계는 다시 headless로 이어집니다.
-
-### 3) JSON 검토 + `dry-run`으로 먼저 확인
-
-먼저 `/tmp/naverpay-missions.json`을 열어 아래를 확인하세요.
-
-- 자동 클릭하면 안 되는 항목 제거
-- `waitSeconds`가 비정상적으로 크거나 작은 항목 제거
-- 원하는 카테고리만 남기기
-
-그 다음 실제 클릭 전에, 타깃 매칭과 필터링이 맞는지 `dry-run`으로 먼저 확인합니다.
-
-```bash
 node scripts/run_missions.mjs \
   --state-dir ./.state/naverpay-profile \
   --missions /tmp/naverpay-missions.json \
   --headless true \
   --max 5 \
   --dry-run true
-```
-
-이 단계에서는 실제 클릭을 하지 않고, 어떤 캠페인이 실행 대상이 되는지만 확인합니다.
-처음 쓰는 사용자에게는 이 단계가 가장 빠른 “정상 동작 확인” 경로입니다.
-
-### 4) 실제 실행
-
-```bash
-node scripts/run_missions.mjs \
-  --state-dir ./.state/naverpay-profile \
-  --missions /tmp/naverpay-missions.json \
-  --headless true \
-  --max 200 \
-  --min-wait-seconds 3 \
-  --default-wait-seconds 7
 ```
 
 실행 후에는 네이버페이 내역 페이지에서 실제 적립 결과를 한 번 수동 확인하는 것을 권장합니다.
@@ -99,10 +95,10 @@ node scripts/run_missions.mjs \
 이 도구는 "클론한 저장소 자체"가 실행 루트입니다.
 
 - 추천 설치 방식: 저장소를 클론하고 의존성을 설치한 뒤, 각 AI 런타임에 이 저장소를 `link` 방식으로 등록
-- 기본 실행 방식: `discover -> JSON 검토 -> run --missions`
-- 고급 실행 방식: `--live-discovery true`를 줘서 실시간 수집/즉시 실행
+- 기본 실행 방식: `run_missions.mjs`로 실시간 수집 후 즉시 실행
+- 검토 실행 방식: `discover -> JSON 검토 -> run --missions`
 
-즉, 편의보다 안전한 기본값을 우선합니다.
+즉, 반복 자동화에서는 즉시 실행을 기본으로 두고, 검토가 필요한 상황에서만 JSON 흐름을 사용합니다.
 
 ## 로그인 동작
 
@@ -126,19 +122,16 @@ node scripts/run_missions.mjs \
 - 다중 계정 프로필(`--state-dir`) 분리 실행 지원
 - Codex/Claude/Gemini/Antigravity용 등록 스크립트 제공
 
-## 고급 모드: live discovery 즉시 실행
-
-예전처럼 실시간 수집 후 바로 실행하려면 명시적으로 opt-in 해야 합니다.
+## 기본 모드: live discovery 즉시 실행
 
 ```bash
 node scripts/run_missions.mjs \
   --state-dir ./.state/naverpay-profile \
-  --live-discovery true \
   --headless true \
   --max 200
 ```
 
-이 모드는 편리하지만, 사람이 검토하지 않은 신규 캠페인도 바로 실행될 수 있습니다.
+검토된 JSON만 실행하고 싶다면 `--missions <path>`를 넘기거나, 실시간 수집을 막기 위해 `--live-discovery false`를 함께 사용합니다.
 
 ## 다중 계정 실행
 
@@ -159,7 +152,7 @@ node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile-b --missions
 ## `run_missions.mjs` 주요 옵션
 
 - `--missions <path>`: 검토된 미션 JSON 경로
-- `--live-discovery <bool>`: 검토용 JSON 없이 즉시 수집/실행할지 여부(기본 `false`)
+- `--live-discovery <bool>`: 검토용 JSON 없이 즉시 수집/실행할지 여부(기본 `true`)
 - `--state-dir <path>`: Playwright 프로필 경로 (기본: `./.state/naverpay-profile`)
 - `--completed-store <path>`: 완료 캠페인 저장 파일 경로
 - `--ignore-completed <bool>`: 완료 이력 무시하고 재시도할지 여부
@@ -217,10 +210,10 @@ node scripts/discover_missions.mjs --help
 
 ## 자동화 예시
 
-무인 실행은 고급 모드입니다. 자동화가 꼭 필요하다면 `--live-discovery true`를 명시해 의도를 드러내세요.
+무인 실행은 기본 즉시 실행 경로를 사용합니다. 로그 파일이 필요하면 셸 리다이렉션으로 남깁니다.
 
 ```cron
-0 9 * * * cd /path/to/naverpay-point-missions && node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile --live-discovery true --headless true --max 200 >> /tmp/naverpay-profile.log 2>&1
+0 9 * * * cd /path/to/naverpay-point-missions && node scripts/ensure_runtime.mjs && node scripts/run_missions.mjs --state-dir ./.state/naverpay-profile --headless true --max 200 >> /tmp/naverpay-profile.log 2>&1
 ```
 
 검토 기반 자동화가 필요하면, 먼저 `discover` 산출물을 갱신하는 별도 단계가 있어야 합니다.
@@ -228,7 +221,8 @@ node scripts/discover_missions.mjs --help
 ## 트러블슈팅
 
 - 로그인 타임아웃: `--login-timeout-sec` 증가. `--headless true`였다면 화면 로그인 유도 창에서 먼저 로그인 완료
-- `run_missions`가 바로 실패: 기본값이 검토 모드이므로 `--missions` 또는 `--live-discovery true` 확인
+- `run_missions`가 `--missions` 없이 바로 실패: 설치된 스킬/스크립트가 구버전일 수 있음. 현재 기본값은 즉시 실행
+- Chromium이 `MachPortRendezvousServer`, `Crashpad`, `Permission denied (1100)`, `Operation not permitted`, `kill EPERM`로 죽음: 로컬 실행 권한 문제이므로 샌드박스 밖 실행 권한으로 한 번 재시도
 - `포인트 받기` 버튼 미탐지: UI 변경 가능성 높음, `discover` 재실행 후 JSON 검토
 - 일부 캠페인 누락: 페이지 로딩/스크롤 지연 가능성, `--max`를 줄여 재시도
 - 이미 참여한 캠페인 반복: `completed-campaigns.json` 경로가 프로필별로 분리됐는지 확인
@@ -239,7 +233,7 @@ node scripts/discover_missions.mjs --help
 - 처음에는 소량(`--max 5~10`)으로 검증 후 배치 확장
 - 계정별 상태 폴더를 반드시 분리
 - 실행 후 네이버페이 내역 페이지에서 적립 결과를 수동 검증
-- 무인 실행은 반드시 명시적 opt-in(`--live-discovery true`)으로만 사용
+- 무인 실행 전 `scripts/ensure_runtime.mjs`로 로컬 런타임을 확인
 - 서비스 정책/약관 변경 시 즉시 중단 후 로직 점검
 
 ## 멀티 AI 스킬 등록

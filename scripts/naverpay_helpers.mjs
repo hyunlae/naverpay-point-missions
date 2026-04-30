@@ -30,6 +30,7 @@ export const DEFAULT_ALREADY_COMPLETED_PATTERNS = [
 ];
 export const DEFAULT_ALREADY_COMPLETED_CONFIRM_LABELS = ["확인"];
 export const LOGIN_TIMEOUT_ERROR_PREFIX = "Login did not complete within";
+export const HEADLESS_CHANNEL_FALLBACK = "chromium";
 
 export function parseCliArgs(argv) {
   const args = { _: [] };
@@ -109,6 +110,20 @@ export function parseCsvArg(value, fallback) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+export function isHeadlessShellLaunchFailure(error) {
+  const text = String(error?.message ?? error ?? "");
+  if (!text) {
+    return false;
+  }
+
+  return (
+    text.includes("chrome-headless-shell") ||
+    text.includes("mach_port_rendezvous_mac.cc") ||
+    text.includes("MachPortRendezvousServer") ||
+    text.includes("Permission denied (1100)")
+  );
 }
 
 export function normalizeText(value) {
@@ -399,6 +414,7 @@ export async function launchContextWithLoginBootstrap(options = {}) {
     loginTimeoutSec = 240,
     logPrefix = "[login]",
     ensureLoggedInFn = ensureLoggedIn,
+    launchOptions = {},
   } = options;
 
   if (!browserType?.launchPersistentContext) {
@@ -407,12 +423,39 @@ export async function launchContextWithLoginBootstrap(options = {}) {
 
   const sessionCheckTimeoutSec = Math.max(5, Math.min(loginTimeoutSec, 15));
   const launch = async (nextHeadless) => {
-    const context = await browserType.launchPersistentContext(stateDir, {
+    const baseLaunchOptions = {
       headless: nextHeadless,
       viewport,
-    });
-    const page = context.pages()[0] ?? (await context.newPage());
-    return { context, page };
+      ...launchOptions,
+    };
+
+    try {
+      const context = await browserType.launchPersistentContext(stateDir, baseLaunchOptions);
+      const page = context.pages()[0] ?? (await context.newPage());
+      return { context, page };
+    } catch (error) {
+      const hasExplicitBrowserSelection =
+        Boolean(baseLaunchOptions.channel) || Boolean(baseLaunchOptions.executablePath);
+      if (
+        !nextHeadless ||
+        hasExplicitBrowserSelection ||
+        !isHeadlessShellLaunchFailure(error)
+      ) {
+        throw error;
+      }
+
+      console.log(
+        `${logPrefix} headless shell launch failed; retrying with channel=${HEADLESS_CHANNEL_FALLBACK}`,
+      );
+
+      const fallbackOptions = {
+        ...baseLaunchOptions,
+        channel: HEADLESS_CHANNEL_FALLBACK,
+      };
+      const context = await browserType.launchPersistentContext(stateDir, fallbackOptions);
+      const page = context.pages()[0] ?? (await context.newPage());
+      return { context, page };
+    }
   };
 
   const initial = await launch(headless);

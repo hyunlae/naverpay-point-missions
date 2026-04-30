@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4 - 2026-04-30
+- run_missions 기본값을 실시간 수집 후 즉시 실행으로 전환했습니다
+- macOS 샌드박스에서 chrome-headless-shell 런치 실패 시 Chromium 채널로 재시도하는 fallback을 추가했습니다
+- 자동화 스킬/README/사전 준비 문서에 런타임 점검, 샌드박스 권한 재시도, 집계 보고 흐름을 반영했습니다
+
 ## 1.0.3 - 2026-04-27
 - 런타임 사전점검 스크립트 추가로 Playwright 패키지와 Chromium 캐시를 자동 복구합니다
 - 스킬/README/사전 준비 문서에 자동화 실행 전 ensure_runtime 흐름을 명시했습니다

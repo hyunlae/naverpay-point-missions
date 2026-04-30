@@ -7,7 +7,7 @@ import { chromium } from "playwright";
 
 import {
   buildExecutionResult,
-  REVIEWED_EXECUTION_REQUIRED_MESSAGE,
+  DEFAULT_EXECUTION_MODE_MESSAGE,
   main,
   preloadReviewedMissions,
   resolveRunOptions,
@@ -19,12 +19,10 @@ test("run_missions defaults max to 200", () => {
   assert.equal(options.maxCount, 200);
 });
 
-test("run_missions requires reviewed missions by default", () => {
+test("run_missions enables live discovery by default", () => {
   const options = resolveRunOptions([]);
-  assert.throws(
-    () => validateRunOptions(options),
-    new RegExp(REVIEWED_EXECUTION_REQUIRED_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
-  );
+  assert.equal(options.liveDiscovery, true);
+  assert.doesNotThrow(() => validateRunOptions(options));
 });
 
 test("run_missions allows reviewed snapshot execution", () => {
@@ -35,6 +33,14 @@ test("run_missions allows reviewed snapshot execution", () => {
 test("run_missions allows explicit live discovery opt-in", () => {
   const options = resolveRunOptions(["--live-discovery", "true"]);
   assert.doesNotThrow(() => validateRunOptions(options));
+});
+
+test("run_missions rejects disabling live discovery without reviewed missions", () => {
+  const options = resolveRunOptions(["--live-discovery", "false"]);
+  assert.throws(
+    () => validateRunOptions(options),
+    new RegExp(DEFAULT_EXECUTION_MODE_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  );
 });
 
 test("run_missions rejects invalid boolean flags", () => {

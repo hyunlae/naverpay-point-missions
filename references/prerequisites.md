@@ -39,13 +39,13 @@ npx playwright install chromium
   - 첫 실행에는 화면 브라우저가 잠깐 열려 최초 로그인을 마치고, 이후에는 다시 headless로 이어집니다.
 - 전체 실행 전에 `--dry-run true`와 `--max 2`로 셀렉터와 매칭 결과를 먼저 검증하기
 - 배치 크기는 작게 시작하고, 각 배치 후 적립 내역을 확인하기
-- 검토된 JSON을 기본 실행 입력으로 보고, live discovery는 명시적으로 결정하기
+- 기본 실행은 live discovery 즉시 실행으로 보고, 검토가 필요한 경우에만 JSON 스냅샷을 사용하기
 
 ## 입력 데이터
 
 - `discover_missions.mjs`가 생성한 미션 스냅샷 JSON
-- `run_missions.mjs`는 기본적으로 검토 기반 실행이며, `--missions <path>`가 필요합니다.
-  - 검토 없이 즉시 수집/실행하려면 `--live-discovery true`를 명시해야 합니다.
+- `run_missions.mjs`는 기본적으로 실시간 수집 후 바로 실행합니다.
+  - 검토된 스냅샷만 강제하려면 `--missions <path>`를 주거나 `--live-discovery false`를 함께 사용합니다.
 - 선택적 커스텀 키워드
   - 미션 액션: `--keywords 링크,적립,참여,받기`
   - 적립 버튼: `--claim-keywords 포인트 받기,포인트 쉽게 받기`
@@ -61,6 +61,9 @@ npx playwright install chromium
 
 - 로그인 세션 만료 또는 CAPTCHA 발생
 - 선택한 `--state-dir`에 저장된 세션이 없어서 `--headless true` 실행 시 1회 visible 로그인 bootstrap이 열리는 경우
+- Chromium이 macOS 권한 문제로 페이지 열기 전 종료되는 경우
+  - `MachPortRendezvousServer`, `Crashpad`, `Permission denied (1100)`, `Operation not permitted`, `kill EPERM` 문구가 대표 신호입니다.
+  - 이 경우 네이버 로그인/CAPTCHA가 아니라 로컬 실행 권한 문제로 보고, 샌드박스 밖 실행 권한으로 한 번 재시도합니다.
 - UI 라벨이나 DOM 구조가 바뀌어 버튼 매칭이 깨지는 경우
 - 미션별 제한 조건 미충족
   - 일일 한도, 참여 자격, 쿨다운 등
